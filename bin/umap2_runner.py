@@ -1,0 +1,150 @@
+#!/usr/bin/env python
+'''
+USB host security assessment tool
+
+Usage:
+    umap2 detect-os -P=phy
+    umap2 scan -P=phy
+    umap2 (fuzz|emulate) -P=phy -C=DEVICE_CLASS [-v ...]
+    umap2 list-classes
+
+Options:
+    -P --phy PHY_INFO           physical layer info, see list below
+    -C --class DEVICE_CLASS     class of the device or path to python file with device class
+    -v --verbose                verbosity level
+
+Physical layer:
+    fd:<serial_port>        use facedancer connected to given serial port
+
+Examples:
+    emulate keyboard without fuzzing:
+        umap2 nofuzz -P fd:/dev/ttyUSB1 -C keyboard
+    emulate disk-on-key with fuzzing:
+        umap2 fuzz -P fd:/dev/ttyUSB1 -C mass-storage
+    emulate your own device without fuzzing:
+        umap2 nofuzz -P fd:/dev/ttyUSB1 -f my_usb_device.py
+'''
+import sys
+import os
+import importlib
+import logging
+from docopt import docopt
+from serial import Serial, PARITY_NONE
+
+sys.path.append(os.path.expanduser('~/github/umap2/'))
+
+
+class Umap2App(object):
+
+    def __init__(self, options):
+        self.class_mapping = {
+            'audio': 'audio',
+            'cdc': 'cdc',
+            'ftdi': 'ftdi',
+            'hub': 'hub',
+            'image': 'image',
+            'keyboard': 'keyboard',
+            'mass-storage': 'mass_storage',
+            'mtp': 'mtp',
+            'printer': 'printer',
+            'smartcard': 'smartcard',
+        }
+        self.options = options
+        self.logger = self.get_logger()
+
+    def get_logger(self):
+        logger = logging.getLogger('umap2')
+        logger.setLevel(logging.INFO)
+        return logger
+
+
+class Umap2ListClassesApp(Umap2App):
+
+    def run(self):
+        ks = sorted(self.class_mapping.keys())
+        for k in ks:
+            print('%s' % k)
+
+
+class Umap2DetectOSApp(Umap2App):
+
+    def run(self):
+        self.logger.error('OS detection is not implemented yet')
+
+
+class Umap2ScanApp(Umap2App):
+
+    def run(self):
+        self.logger.error('Scanning is not implemented yet')
+
+
+class Umap2EmulationApp(Umap2App):
+
+    def run(self):
+        fuzzer = self.get_fuzzer()
+        app = self.load_phy_app(self.options['--phy'], fuzzer)
+        dev = self.load_device(self.options['--class'], app, fuzzer)
+        dev.connect()
+        dev.run()
+        dev.disconnect()
+
+    def get_fuzzer(self):
+        return None
+
+    def load_phy_app(self, phy_string, fuzzer):
+        self.logger.info('loading physical interface app: %s' % phy_string)
+        phy_arr = phy_string.split(':')
+        phy_type = phy_arr[0]
+        if phy_type == 'fd':
+            from umap2.phy.facedancer.facedancer import Facedancer
+            from umap2.phy.facedancer.maxusb_app import MAXUSBApp
+            self.logger.debug('physical interface is facedancer')
+            dev_name = phy_arr[1]
+            s = Serial(dev_name, 115200, parity=PARITY_NONE, timeout=2)
+            fd = Facedancer(s)
+            app = MAXUSBApp(fd, fuzzer=fuzzer)
+            return app
+        raise Exception('Phy type not supported: %s' % phy_type)
+
+    def load_device(self, dev_name, app, fuzzer):
+        if dev_name in self.class_mapping:
+            self.logger.info('loading USB device %s' % dev_name)
+            module_name = self.class_mapping[dev_name]
+            module = importlib.import_module('umap2.dev.%s' % module_name)
+        else:
+            self.logger.info('loading custom USB device from file: %s' % dev_name)
+            dirpath, filename = os.path.split(dev_name)
+            modulename = filename[:-3]
+            if dirpath in sys.path:
+                sys.path.remove(dirpath)
+            sys.path.insert(0, dirpath)
+            module = __import__(modulename, globals(), locals(), [], -1)
+        usb_device = module.usb_device
+        dev = usb_device(app)
+        return dev
+
+
+class Umap2FuzzApp(Umap2EmulationApp):
+
+    def get_fuzzer(self):
+        raise Exception('Not implemented yet')
+
+
+def _main():
+    options = docopt(__doc__)
+    if options['detect-os']:
+        app_cls = Umap2DetectOSApp
+    elif options['scan']:
+        app_cls = Umap2ScanApp
+    elif options['fuzz']:
+        app_cls = Umap2FuzzApp
+    elif options['emulate']:
+        app_cls = Umap2EmulationApp
+    elif options['list-classes']:
+        app_cls = Umap2ListClassesApp
+    app = app_cls(options)
+    app.run()
+
+
+if __name__ == '__main__':
+    _main()
