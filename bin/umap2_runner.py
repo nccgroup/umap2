@@ -31,6 +31,7 @@ import sys
 import os
 import importlib
 import logging
+import traceback
 from docopt import docopt
 from serial import Serial, PARITY_NONE
 
@@ -92,6 +93,7 @@ class Umap2App(object):
         dev = usb_device(app)
         return dev
 
+
 class Umap2ListClassesApp(Umap2App):
 
     def run(self):
@@ -121,13 +123,16 @@ class Umap2EmulationApp(Umap2App):
         try:
             dev.connect()
             dev.run()
+        except KeyboardInterrupt:
+            self.logger.info('user terminated the run')
         except:
-            print('Got exception while connecting/running device')
-            print(traceback.format_exc())
+            self.logger.error('Got exception while connecting/running device')
+            self.logger.error(traceback.format_exc())
         dev.disconnect()
 
     def get_fuzzer(self):
         return None
+
 
 class Umap2FuzzApp(Umap2EmulationApp):
 
