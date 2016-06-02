@@ -35,7 +35,8 @@ import traceback
 from docopt import docopt
 from serial import Serial, PARITY_NONE
 
-sys.path.append(os.path.expanduser('~/github/umap2/'))
+from umap2.phy.facedancer.facedancer import Facedancer
+from umap2.phy.facedancer.maxusb_app import MAXUSBApp
 
 
 class Umap2App(object):
@@ -66,8 +67,6 @@ class Umap2App(object):
         phy_arr = phy_string.split(':')
         phy_type = phy_arr[0]
         if phy_type == 'fd':
-            from umap2.phy.facedancer.facedancer import Facedancer
-            from umap2.phy.facedancer.maxusb_app import MAXUSBApp
             self.logger.debug('physical interface is facedancer')
             dev_name = phy_arr[1]
             s = Serial(dev_name, 115200, parity=PARITY_NONE, timeout=2)

@@ -6,6 +6,7 @@ import time
 
 from kitty.controllers import ClientController
 
+
 class UmapController(ClientController):
     '''
     Trigger a USB reconnection -

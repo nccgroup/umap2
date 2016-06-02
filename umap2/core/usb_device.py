@@ -16,7 +16,7 @@ class USBDevice(USBBaseActor):
             self, app, device_class, device_subclass,
             protocol_rel_num, max_packet_size_ep0, vendor_id, product_id,
             device_rev, manufacturer_string, product_string,
-            serial_number_string, configurations, descriptors):
+            serial_number_string, configurations=None, descriptors=None):
         '''
         :params app: phy application (to communicate with actual device)
         :params device_class: device class
@@ -29,10 +29,14 @@ class USBDevice(USBBaseActor):
         :params manufacturer_string: manufacturer name string
         :params product_string: product name string
         :params serial_number_string: serial number string
-        :params configurations: array of available configurations
-        :params descriptors: dict of handler for descriptor requests
+        :params configurations: list of available configurations (default: None)
+        :params descriptors: dict of handler for descriptor requests (default: None)
         '''
         super(USBDevice, self).__init__(app)
+        if configurations is None:
+            configurations = []
+        if descriptors is None:
+            descriptors = {}
         self.supported_device_class_trigger = False
         self.supported_device_class_count = 0
 
