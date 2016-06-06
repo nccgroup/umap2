@@ -3,7 +3,6 @@
 # Contains class definition for MAXUSBApp.
 
 import os
-import traceback
 import struct
 import time
 from binascii import hexlify
@@ -52,7 +51,7 @@ class MAXUSBApp(FacedancerApp):
     interrupt_level = 0x08
     full_duplex = 0x10
 
-    def __init__(self, device, fuzzer=None):
+    def __init__(self, device, app, fuzzer=None):
         super(MAXUSBApp, self).__init__(device)
 
         self.connected_device = None
@@ -61,6 +60,8 @@ class MAXUSBApp(FacedancerApp):
         self.stop = False
         self.retries = False
         self.enable()
+
+        self.app = app
 
         rev = self.read_register(self.reg_revision)
         self.info('revision: %d' % rev)
@@ -194,7 +195,7 @@ class MAXUSBApp(FacedancerApp):
             self.clear_disconnect_trigger()
             # wait for reconnection request; no point in returning to service_irqs loop while not connected!
             while not self.should_reconnect():
-                self.clear_disconnect_trigger() # be robust to additional disconnect requests
+                self.clear_disconnect_trigger()  # be robust to additional disconnect requests
                 time.sleep(0.1)
             # now that we received a reconnect request, flow into the handling of it...
         # be robust to reconnection requests, whether received after a disconnect request, or standalone
@@ -271,7 +272,6 @@ class MAXUSBApp(FacedancerApp):
                 try:
                     self.connected_device.handle_buffer_available(2)
                 except:
-                    traceback.print_exc()
                     self.error('umap ignored the exception for some reason... will need to address that later on')
                     raise
 
@@ -279,10 +279,12 @@ class MAXUSBApp(FacedancerApp):
                 try:
                     self.connected_device.handle_buffer_available(3)
                 except:
-                    traceback.print_exc()
                     self.error('umap ignored the exception for some reason... will need to address that later on')
                     raise
             tmp_irq = irq
-            if self.check_connection_commands():
-                count = 0
-        self.disconnect()
+            if self.app.packet_processed():
+                break
+
+    # code that should be removed soon
+    def usb_function_supported(self):
+        self.app.usb_function_supported()

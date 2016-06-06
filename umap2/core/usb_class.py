@@ -56,4 +56,4 @@ class USBClass(USBBaseActor):
         response = handler(req)
         if response is not None:
             self.app.send_on_endpoint(0, response)
-        self.supported()
+        self.usb_function_supported()

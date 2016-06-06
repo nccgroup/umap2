@@ -404,7 +404,6 @@ class USBDevice(USBBaseActor):
 
         # HACK: blindly acknowledge request
         self.ack_status_stage()
-        # self.supported()
 
     # USB 2.0 specification, section 9.4.4 (p 282 of pdf)
     def handle_get_interface_request(self, req):

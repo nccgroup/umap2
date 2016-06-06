@@ -42,11 +42,11 @@ class USBIphoneClass(USBClass):
 
     def handle_set_control_line_state(self, req):
         self.app.send_on_endpoint(0, b'')
-        self.supported()
+        self.usb_function_supported()
 
     def handle_set_line_coding(self, req):
         self.app.send_on_endpoint(0, b'')
-        self.supported()
+        self.usb_function_supported()
 
 
 class USBIphoneInterface(USBInterface):

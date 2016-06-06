@@ -29,7 +29,6 @@ class USBEndpoint(USBBaseActor):
             self, app, number, direction, transfer_type, sync_type,
             usage_type, max_packet_size, interval, handler):
         '''
-        :type app: :class:`~MAXUSBApp.MAXUSBApp`
         :param app: application
         :param number: endpoint number
         :param direction: endpoint direction (direction_in/direction_out)

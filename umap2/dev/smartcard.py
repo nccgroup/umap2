@@ -450,7 +450,7 @@ class USBSmartcardInterface(USBInterface):
         return response
 
     def handle_data_available(self, data):
-        self.supported()
+        self.usb_function_supported()
         opcode, length, slot, seq = struct.unpack('<BIBB', data[:7])
         if opcode in self.operations:
             handler = self.operations[opcode]

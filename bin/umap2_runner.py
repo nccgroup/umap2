@@ -57,6 +57,7 @@ class Umap2App(object):
         }
         self.options = options
         self.logger = self.get_logger()
+        self.num_processed = 0
 
     def get_logger(self):
         levels = {
@@ -84,11 +85,11 @@ class Umap2App(object):
             dev_name = phy_arr[1]
             s = Serial(dev_name, 115200, parity=PARITY_NONE, timeout=2)
             fd = Facedancer(s)
-            phy = MAXUSBApp(fd, fuzzer=fuzzer)
+            phy = MAXUSBApp(fd, self, fuzzer=fuzzer)
             return phy
         raise Exception('phy type not supported: %s' % phy_type)
 
-    def load_device(self, dev_name, app):
+    def load_device(self, dev_name, phy):
         stage_logger = StageLogger('stages.log')
         stage_logger.start()
         set_stage_logger(stage_logger)
@@ -105,8 +106,23 @@ class Umap2App(object):
             sys.path.insert(0, dirpath)
             module = __import__(modulename, globals(), locals(), [], -1)
         usb_device = module.usb_device
-        dev = usb_device(app)
+        dev = usb_device(phy)
         return dev
+
+    def packet_processed(self):
+        '''
+        Callback from phy after processing of each packet
+        :return: whether phy should stop serving.
+        '''
+        return False
+
+    def usb_function_supported(self):
+        '''
+        Callback from a USB device, notifying that the current USB device
+        is supported by the host.
+        By default, do nothing with this information
+        '''
+        pass
 
 
 class Umap2ListClassesApp(Umap2App):
@@ -125,16 +141,37 @@ class Umap2DetectOSApp(Umap2App):
 
 class Umap2ScanApp(Umap2App):
 
+    def __init__(self, options):
+        super(Umap2ScanApp, self).__init__(options)
+        self.current_usb_function_supported = False
+
+    def usb_function_supported(self):
+        '''
+        Callback from a USB device, notifying that the current USB device
+        is supported by the host.
+        '''
+        self.current_usb_function_supported = True
+
     def run(self):
         self.logger.error('Scanning is not implemented yet')
+
+    def packet_processed(self):
+        if self.current_usb_function_supported:
+            self.logger.debug('Current USB device is supported stopping phy')
+            return True
+        self.num_processed += 1
+        if self.num_processed == 10000:
+            self.logger.always('Reached %#x packets, stopping phy' % self.num_processed)
+            stop_phy = True
+        return stop_phy
 
 
 class Umap2EmulationApp(Umap2App):
 
     def run(self):
         fuzzer = self.get_fuzzer()
-        app = self.load_phy(self.options['--phy'], fuzzer)
-        dev = self.load_device(self.options['--class'], app)
+        phy = self.load_phy(self.options['--phy'], fuzzer)
+        dev = self.load_device(self.options['--class'], phy)
         try:
             dev.connect()
             dev.run()

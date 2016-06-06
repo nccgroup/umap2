@@ -172,7 +172,7 @@ class USBKeyboardInterface(USBInterface):
         # wait for a little bit... (see section 7.2.1 in HID spec)
         #
         if self.call_count > 100:
-            self.supported()
+            self.usb_function_supported()
             if self.keys:
                 letter = self.keys.pop(0)
                 self.type_letter(letter)
