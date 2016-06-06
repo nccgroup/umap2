@@ -13,7 +13,7 @@ Install Kitty and Katnip
 ::
 
     $ pip install kittyfuzzer
-    $ pip install git+https://github.com/cisco-sas/katnip.git#egg=katnip
+    $ pip install katnip
 
 
 Usage
@@ -38,8 +38,7 @@ The fuzzer should start first, and wait for the umap stack.
 
 ::
 
-    $ cd <umap-dir>/fuzzing
-    $ ./fuzzer.py --type=enumeration
+    $ ./umap2_fuzzer.py --type=enumeration
 
 Step #3 - Start the stack
 +++++++++++++++++++++++++
@@ -50,8 +49,7 @@ We also tell umap to emulate a keyboard.
 
 ::
 
-    $ cd <umap-dir>
-    $ ./umap_stack.py fuzz --port /dev/ttyUSB0  --device keyboard
+    $ ./umap2_runner.py fuzz -P fd:/dev/ttyUSB0 -v -C keyboard
 
 Step #4 - Monitor fuzzing progress
 ++++++++++++++++++++++++++++++++++
