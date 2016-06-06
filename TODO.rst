@@ -7,3 +7,6 @@
     - smartcard
 - Add devices
     - ??
+- Todo
+    - move most of app logic from MAXUSBAapp to Umap2App
+    - change app in all usb classes to Umap2App ??

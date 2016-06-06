@@ -46,7 +46,6 @@ class USBEndpoint(USBBaseActor):
         .. note:: OUT endpoint is 1, IN endpoint is either 2 or 3
         '''
         super(USBEndpoint, self).__init__(app)
-        self.app = app
         self.number = number
         self.direction = direction
         self.transfer_type = transfer_type

@@ -53,7 +53,7 @@ class MAXUSBApp(FacedancerApp):
     full_duplex = 0x10
 
     def __init__(self, device, fuzzer=None):
-        FacedancerApp.__init__(self, device)
+        super(MAXUSBApp, self).__init__(device)
 
         self.connected_device = None
         self.fuzzer = fuzzer

@@ -75,8 +75,8 @@ class Umap2App(object):
             logger.setLevel(logging.WARNING)
         return logger
 
-    def load_phy_app(self, phy_string, fuzzer):
-        self.logger.info('loading physical interface app: %s' % phy_string)
+    def load_phy(self, phy_string, fuzzer):
+        self.logger.info('loading physical interface: %s' % phy_string)
         phy_arr = phy_string.split(':')
         phy_type = phy_arr[0]
         if phy_type == 'fd':
@@ -84,9 +84,9 @@ class Umap2App(object):
             dev_name = phy_arr[1]
             s = Serial(dev_name, 115200, parity=PARITY_NONE, timeout=2)
             fd = Facedancer(s)
-            app = MAXUSBApp(fd, fuzzer=fuzzer)
-            return app
-        raise Exception('Phy type not supported: %s' % phy_type)
+            phy = MAXUSBApp(fd, fuzzer=fuzzer)
+            return phy
+        raise Exception('phy type not supported: %s' % phy_type)
 
     def load_device(self, dev_name, app):
         stage_logger = StageLogger('stages.log')
@@ -133,7 +133,7 @@ class Umap2EmulationApp(Umap2App):
 
     def run(self):
         fuzzer = self.get_fuzzer()
-        app = self.load_phy_app(self.options['--phy'], fuzzer)
+        app = self.load_phy(self.options['--phy'], fuzzer)
         dev = self.load_device(self.options['--class'], app)
         try:
             dev.connect()

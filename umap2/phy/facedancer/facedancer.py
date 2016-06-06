@@ -7,7 +7,7 @@ from binascii import hexlify
 import logging
 
 
-class Facedancer:
+class Facedancer(object):
 
     def __init__(self, serialport):
         self.serialport = serialport
@@ -62,7 +62,7 @@ class Facedancer:
         self.logger.verbose('Facedancer Tx command: %s' % c)
 
 
-class FacedancerCommand:
+class FacedancerCommand(object):
     def __init__(self, app=None, verb=None, data=None):
         self.app = app
         self.verb = verb
@@ -92,7 +92,7 @@ class FacedancerCommand:
         return b
 
 
-class FacedancerApp:
+class FacedancerApp(object):
     app_name = 'override this'
     app_num = 0x00
 
