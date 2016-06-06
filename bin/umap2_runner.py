@@ -7,7 +7,7 @@ Usage:
     umap2 emulate -P=PHY_INFO -C=DEVICE_CLASS [-q] [-v ...]
     umap2 fuzz -P=PHY_INFO -C=DEVICE_CLASS [-q] [-i=FUZZER_IP] [-p FUZZER_PORT] [-v ...]
     umap2 list-classes
-    umap2 scan -P=PHY_INFO [-v ...]
+    umap2 scan -P=PHY_INFO [-q] [-v ...]
 
 Options:
     -P --phy PHY_INFO           physical layer info, see list below
@@ -33,6 +33,7 @@ import os
 import importlib
 import logging
 import traceback
+import time
 from docopt import docopt
 from serial import Serial, PARITY_NONE
 
@@ -144,6 +145,7 @@ class Umap2ScanApp(Umap2App):
     def __init__(self, options):
         super(Umap2ScanApp, self).__init__(options)
         self.current_usb_function_supported = False
+        self.start_time = 0
 
     def usb_function_supported(self):
         '''
@@ -153,15 +155,46 @@ class Umap2ScanApp(Umap2App):
         self.current_usb_function_supported = True
 
     def run(self):
-        self.logger.error('Scanning is not implemented yet')
+        self.logger.always('Scanning host for supported devices')
+        phy = self.load_phy(self.options['--phy'], None)
+        supported = []
+        for device_name in sorted(self.class_mapping.keys()):
+            if device_name == 'printer':
+                # skip printer ATM
+                continue
+            self.logger.always('Testing support: %s' % (device_name))
+            try:
+                self.start_time = time.time()
+                device = self.load_device(device_name, phy)
+                device.connect()
+                device.run()
+                device.disconnect()
+            except:
+                self.logger.error(traceback.format_exc())
+            phy.disconnect()
+            if self.current_usb_function_supported:
+                self.logger.always('Device is SUPPORTED')
+                supported.append(device_name)
+            self.current_usb_function_supported = False
+            self.num_processed = 0
+            time.sleep(2)
+        if len(supported):
+            self.logger.always('---------------------------------')
+            self.logger.always('Found %s supported device(s):' % (len(supported)))
+            for i, device_name in enumerate(supported):
+                self.logger.always('%d. %s' % (i + 1, device_name))
 
     def packet_processed(self):
-        if self.current_usb_function_supported:
-            self.logger.debug('Current USB device is supported stopping phy')
-            return True
+        # if self.current_usb_function_supported:
+        #     self.logger.debug('Current USB device is supported, stopping phy')
+        #     return True
         self.num_processed += 1
-        if self.num_processed == 10000:
-            self.logger.always('Reached %#x packets, stopping phy' % self.num_processed)
+        stop_phy = False
+        if self.num_processed == 3000:
+            self.logger.info('Reached %#x packets, stopping phy' % self.num_processed)
+            stop_phy = True
+        elif time.time() - self.start_time > 5:
+            self.logger.info('have been waiting long enough (over %d secs.), disconnect' % (int(time.time() - self.start_time)))
             stop_phy = True
         return stop_phy
 

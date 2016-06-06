@@ -114,9 +114,9 @@ class MAXUSBApp(FacedancerApp):
     def disconnect(self):
         self.write_register(self.reg_usb_control, self.usb_control_vbgate)
         if self.connected_device:
-            self.info("disconnected device %s" % self.connected_device.name)
+            self.info('disconnected device %s' % self.connected_device.name)
         else:
-            self.error('disconnect called when already disconnected')
+            self.info('disconnect called when already disconnected')
         self.connected_device = None
 
     def is_connected(self):

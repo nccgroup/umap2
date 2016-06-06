@@ -72,7 +72,7 @@ class USBKeyboardInterface(USBInterface):
                     sync_type=USBEndpoint.sync_type_none,
                     usage_type=USBEndpoint.usage_type_data,
                     max_packet_size=0x40,
-                    interval=10,
+                    interval=0x40,
                     handler=self.handle_buffer_available
                 )
             ],

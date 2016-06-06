@@ -33,11 +33,11 @@ class USBAudioClass(USBClass):
 
     @mutable('audio_get_max_response', silent=True)
     def handle_audio_get_max(self, req):
-        return b'\xf0\xff'
+        return b'\x64\x00'
 
     @mutable('audio_get_min_response', silent=True)
     def handle_audio_get_min(self, req):
-        return b'\xa0\xe0'
+        return b'\xa0\x00'
 
     @mutable('audio_get_res_response', silent=True)
     def handle_audio_get_res(self, req):
