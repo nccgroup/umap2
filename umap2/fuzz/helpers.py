@@ -1,10 +1,50 @@
+'''
+This module contains helpers for fuzzing
+'''
+
 import traceback
 import binascii
+
+
+class StageLogger(object):
+
+    def __init__(self, filename):
+        self.filename = filename
+        self.fd = None
+
+    def start(self):
+        self.fd = open(self.filename, 'wb')
+
+    def stop(self):
+        if self.fd:
+            self.fd.close()
+
+    def log_stage(self, stage):
+        if self.fd:
+            self.fd.write(stage + '\n')
+            self.fd.flush()
+
+
+stage_logger = StageLogger('dummy')
+
+
+def set_stage_logger(logger):
+    '''
+    Set a new stage logger
+    '''
+    global stage_logger
+    stage_logger = logger
+
+
+def log_stage(stage):
+    global stage_logger
+    stage_logger.log_stage(stage)
 
 
 def mutable(stage, silent=False):
     def wrap_f(func):
         def wrapper(self, *args, **kwargs):
+            log_stage(stage)
             info = self.info if not silent else self.debug
             session_data = self.get_session_data(stage)
             data = kwargs.get('fuzzing_data', {})

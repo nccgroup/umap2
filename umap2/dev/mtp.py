@@ -8,7 +8,7 @@ from umap2.core.usb_interface import USBInterface
 from umap2.core.usb_endpoint import USBEndpoint
 from umap2.core.usb_vendor import USBVendor
 from umap2.core.usb_class import USBClass
-from umap2.fuzz.wrappers import mutable
+from umap2.fuzz.helpers import mutable
 try:
     from mtpdevice.mtp_device import MtpDevice, MtpDeviceInfo
     from mtpdevice.mtp_object import MtpObject

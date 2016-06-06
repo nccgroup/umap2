@@ -3,7 +3,7 @@
 # Contains class definition for USBEndpoint.
 import struct
 from umap2.core.usb_base import USBBaseActor
-from umap2.fuzz.wrappers import mutable
+from umap2.fuzz.helpers import mutable
 
 
 class USBEndpoint(USBBaseActor):

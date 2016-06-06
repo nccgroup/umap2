@@ -38,6 +38,7 @@ from serial import Serial, PARITY_NONE
 
 from umap2.phy.facedancer.facedancer import Facedancer
 from umap2.phy.facedancer.maxusb_app import MAXUSBApp
+from umap2.fuzz.helpers import StageLogger, set_stage_logger
 
 
 class Umap2App(object):
@@ -88,6 +89,9 @@ class Umap2App(object):
         raise Exception('Phy type not supported: %s' % phy_type)
 
     def load_device(self, dev_name, app):
+        stage_logger = StageLogger('stages.log')
+        stage_logger.start()
+        set_stage_logger(stage_logger)
         if dev_name in self.class_mapping:
             self.logger.info('loading USB device %s' % dev_name)
             module_name = self.class_mapping[dev_name]
