@@ -4,8 +4,8 @@ USB host security assessment tool
 
 Usage:
     umap2 detect-os -P=PHY_INFO [-v ...]
-    umap2 emulate -P=PHY_INFO -C=DEVICE_CLASS [-v ...]
-    umap2 fuzz -P=PHY_INFO -C=DEVICE_CLASS [-i=FUZZER_IP] [-p FUZZER_PORT] [-v ...]
+    umap2 emulate -P=PHY_INFO -C=DEVICE_CLASS [-q] [-v ...]
+    umap2 fuzz -P=PHY_INFO -C=DEVICE_CLASS [-q] [-i=FUZZER_IP] [-p FUZZER_PORT] [-v ...]
     umap2 list-classes
     umap2 scan -P=PHY_INFO [-v ...]
 
@@ -15,6 +15,7 @@ Options:
     -v --verbose                verbosity level
     -i --fuzzer-ip HOST         hostname or IP of the fuzzer [default: 127.0.0.1]
     -p --fuzzer-port PORT       port of the fuzzer [default: 26007]
+    -q --quiet                  quiet mode. only print warning/error messages
 
 Physical layer:
     fd:<serial_port>        use facedancer connected to given serial port
@@ -47,7 +48,6 @@ class Umap2App(object):
             'cdc': 'cdc',
             'ftdi': 'ftdi',
             'hub': 'hub',
-            'image': 'image',
             'keyboard': 'keyboard',
             'mass-storage': 'mass_storage',
             'mtp': 'mtp',
@@ -58,8 +58,20 @@ class Umap2App(object):
         self.logger = self.get_logger()
 
     def get_logger(self):
+        levels = {
+            0: logging.INFO,
+            1: logging.DEBUG,
+            # verbose is added by umap2.__init__ module
+            2: logging.VERBOSE,
+        }
+        verbose = self.options['--verbose']
         logger = logging.getLogger('umap2')
-        logger.setLevel(logging.INFO)
+        if verbose in levels:
+            logger.setLevel(levels[verbose])
+        else:
+            logger.setLevel(logging.VERBOSE)
+        if self.options['--quiet']:
+            logger.setLevel(logging.WARNING)
         return logger
 
     def load_phy_app(self, phy_string, fuzzer):

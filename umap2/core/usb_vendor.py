@@ -11,9 +11,9 @@ class USBVendor(USBBaseActor):
     # maps bRequest to handler function
     request_handlers = {}
 
-    def __init__(self, app):
+    def __init__(self, app, device=None):
         super(USBVendor, self).__init__(app)
-        self.device = None
+        self.device = device
         self.setup_request_handlers()
 
     def set_device(self, device):

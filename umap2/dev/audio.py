@@ -9,7 +9,7 @@ from umap2.core.usb_device import USBDevice
 from umap2.core.usb_configuration import USBConfiguration
 from umap2.core.usb_interface import USBInterface
 from umap2.core.usb_endpoint import USBEndpoint
-from uamp2.core.usb_cs_interface import USBCSInterface
+from umap2.core.usb_cs_interface import USBCSInterface
 from umap2.fuzz.wrappers import mutable
 
 
@@ -227,22 +227,20 @@ class USBAudioInterface(USBInterface):
         # if self.int_num == 1:
         #     endpoints = endpoints1
 
-        # TODO: un-hardcode string index (last arg before "verbose")
+        # TODO: un-hardcode string index
         super(USBAudioInterface, self).__init__(
             app=app,
-            interface_number=int_num,          # interface number
-            interface_alternate=0,          # alternate setting
-            interface_class=usbclass,          # 3 interface class
-            interface_subclass=sub,          # 0 subclass
-            interface_protocol=proto,          # 0 protocol
-            interface_string_index=0,          # string index
+            interface_number=int_num,
+            interface_alternate=0,
+            interface_class=usbclass,
+            interface_subclass=sub,
+            interface_protocol=proto,
+            interface_string_index=0,
             endpoints=endpoints,
             descriptors=descriptors,
-            cs_interfaces=cs_interfaces
+            cs_interfaces=cs_interfaces,
+            device_class=USBAudioClass(app)
         )
-
-        self.device_class = USBAudioClass(app)
-        self.device_class.set_interface(self)
 
     def audio_ep2_buffer_available(self):
         return self.app.send_on_endpoint(2, b'\x00\x00\x00')
@@ -267,23 +265,6 @@ class USBAudioDevice(USBDevice):
     name = "USB audio device"
 
     def __init__(self, app, vid=0x041e, pid=0x0402, rev=0x0001, **kwargs):
-        interface0 = USBAudioInterface(0, app, USBClass.Audio, 0x01, 0x00)
-        interface1 = USBAudioInterface(1, app, USBClass.Audio, 0x02, 0x00)
-        interface2 = USBAudioInterface(2, app, USBClass.Audio, 0x02, 0x00)
-        interface3 = USBAudioInterface(3, app, USBClass.HID, 0x00, 0x00)
-
-        config = USBConfiguration(
-            app=app,
-            configuration_index=1,
-            configuration_string="Emulated Audio",
-            interfaces=[
-                interface0,
-                interface1,
-                interface2,
-                interface3
-            ]
-        )
-
         super(USBAudioDevice, self).__init__(
             app=app,
             device_class=USBClass.Unspecified,
@@ -296,8 +277,19 @@ class USBAudioDevice(USBDevice):
             manufacturer_string="Creative Technology Ltd.",
             product_string="Creative HS-720 Headset",
             serial_number_string="",
-            configurations=[config],
-            descriptors={},
+            configurations=[
+                USBConfiguration(
+                    app=app,
+                    index=1,
+                    string="Emulated Audio",
+                    interfaces=[
+                        USBAudioInterface(0, app, USBClass.Audio, 0x01, 0x00),
+                        USBAudioInterface(1, app, USBClass.Audio, 0x02, 0x00),
+                        USBAudioInterface(2, app, USBClass.Audio, 0x02, 0x00),
+                        USBAudioInterface(3, app, USBClass.HID, 0x00, 0x00),
+                    ]
+                )
+            ],
         )
 
 

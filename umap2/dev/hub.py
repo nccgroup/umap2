@@ -1,6 +1,6 @@
-# USBHub.py
-#
-# Contains class definitions to implement a USB hub.
+'''
+Contains class definitions to implement a USB hub.
+'''
 import struct
 from umap2.core.usb import DescriptorType
 from umap2.core.usb_class import USBClass
@@ -37,38 +37,34 @@ class USBHubClass(USBClass):
 class USBHubInterface(USBInterface):
     name = "USB hub interface"
 
-    def __init__(self, app):
-        descriptors = {
-            DescriptorType.hub: self.get_hub_descriptor
-        }
-
-        int_ep = USBEndpoint(
-            app=app,
-            number=0x2,
-            direction=USBEndpoint.direction_in,
-            transfer_type=USBEndpoint.transfer_type_interrupt,
-            sync_type=USBEndpoint.sync_type_none,
-            usage_type=USBEndpoint.usage_type_data,
-            max_packet_size=0x40,
-            interval=0x0c,
-            handler=self.handle_buffer_available
-        )
-
-        # TODO: un-hardcode string index (last arg before "verbose")
+    def __init__(self, app, num=0):
+        # TODO: un-hardcode string index
         super(USBHubInterface, self).__init__(
             app=app,
-            interface_number=0,
+            interface_number=num,
             interface_alternate=0,
             interface_class=USBClass.Hub,
             interface_subclass=0,
             interface_protocol=0,
             interface_string_index=0,
-            endpoints=[int_ep],
-            descriptors=descriptors
+            endpoints=[
+                USBEndpoint(
+                    app=app,
+                    number=0x2,
+                    direction=USBEndpoint.direction_in,
+                    transfer_type=USBEndpoint.transfer_type_interrupt,
+                    sync_type=USBEndpoint.sync_type_none,
+                    usage_type=USBEndpoint.usage_type_data,
+                    max_packet_size=0x40,
+                    interval=0x0c,
+                    handler=self.handle_buffer_available
+                )
+            ],
+            descriptors={
+                DescriptorType.hub: self.get_hub_descriptor
+            },
+            device_class=USBHubClass(app)
         )
-
-        self.device_class = USBHubClass(app)
-        self.device_class.set_interface(self)
 
     @mutable('hub_descriptor')
     def get_hub_descriptor(self, **kwargs):
@@ -100,16 +96,7 @@ class USBHubInterface(USBInterface):
 class USBHubDevice(USBDevice):
     name = "USB hub device"
 
-    def __init__(self, app, vid=0x05e3, pid=0x0608, rev=0x6477, **kwargs):
-        interface = USBHubInterface(app)
-
-        config = USBConfiguration(
-            app=app,
-            configuration_index=1,
-            configuration_string="Emulated Hub",
-            interfaces=[interface]
-        )
-
+    def __init__(self, app, vid=0x05e3, pid=0x0610, rev=0x7732, **kwargs):
         super(USBHubDevice, self).__init__(
             app=app,
             device_class=USBClass.Hub,
@@ -122,8 +109,17 @@ class USBHubDevice(USBDevice):
             manufacturer_string="Genesys Logic, Inc",
             product_string="USB2.0 Hub",
             serial_number_string="1234",
-            configurations=[config],
-            descriptors={},
+            configurations=[
+                USBConfiguration(
+                    app=app,
+                    index=1,
+                    string="Emulated Hub",
+                    interfaces=[
+                        USBHubInterface(app)
+                    ],
+                    attributes=USBConfiguration.ATTR_REMOTE_WAKEUP | USBConfiguration.ATTR_SELF_POWERED,
+                )
+            ],
         )
 
 

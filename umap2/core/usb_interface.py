@@ -1,6 +1,8 @@
-# USBInterface.py
-#
-# Contains class definition for USBInterface.
+'''
+USB Interface class.
+Each instance represents a single USB interface.
+This is a base class, and should be subclassed.
+'''
 import struct
 from umap2.core.usb import interface_class_to_descriptor_type, DescriptorType
 from umap2.core.usb_base import USBBaseActor
@@ -13,8 +15,22 @@ class USBInterface(USBBaseActor):
     def __init__(
         self, app, interface_number, interface_alternate, interface_class,
         interface_subclass, interface_protocol, interface_string_index,
-        endpoints=None, descriptors=None, cs_interfaces=None
+        endpoints=None, descriptors=None, cs_interfaces=None,
+        device_class=None
     ):
+        '''
+        :param app: application instance
+        :param interface_number: interface number
+        :param interface_alternate: alternate settings
+        :param interface_class: interface class
+        :param interface_subclass: interface subclass
+        :param interface_protocol: interface protocol
+        :param interface_string_index: interface string index
+        :param endpoints: list of endpoints for this interface (default: None)
+        :param descriptors: dictionary of descriptor handlers for the interface (default: None)
+        :param cs_interfaces: list of class specific interfaces (default: None)
+        :param device_class: USB device class (default: None)
+        '''
         super(USBInterface, self).__init__(app)
         self.number = interface_number
         self.alternate = interface_alternate
@@ -39,7 +55,9 @@ class USBInterface(USBBaseActor):
         for e in self.endpoints:
             e.set_interface(self)
 
-        self.device_class = None
+        self.device_class = device_class
+        if self.device_class:
+            self.device_class.set_interface(self)
 
     def set_configuration(self, config):
         self.configuration = config
@@ -61,13 +79,13 @@ class USBInterface(USBBaseActor):
 
         if response:
             n = min(n, len(response))
-            self.configuration.device.app.send_on_endpoint(0, response[:n])
+            self.app.send_on_endpoint(0, response[:n])
             self.verbose('sent %d bytes in response' % (n))
 
     def handle_set_interface_request(self, req):
         self.debug("received SET_INTERFACE request")
-        self.configuration.device.app.stall_ep0()
-        # self.configuration.device.app.send_on_endpoint(0, b'')
+        self.app.stall_ep0()
+        # self.app.send_on_endpoint(0, b'')
 
     # Table 9-12 of USB 2.0 spec (pdf page 296)
     @mutable('interface_descriptor')

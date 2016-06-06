@@ -30,8 +30,8 @@ class Facedancer:
     def read(self, n):
         '''Read raw bytes.'''
         b = self.serialport.read(n)
-        self.logger.debug('Facedancer received %s bytes; %s bytes remaining' % (len(b), self.serialport.inWaiting()))
-        self.logger.debug('Facedancer Rx: %s' % hexlify(b))
+        self.logger.verbose('Facedancer received %s bytes; %s bytes remaining' % (len(b), self.serialport.inWaiting()))
+        self.logger.verbose('Facedancer Rx: %s' % hexlify(b))
         return b
 
     def readcmd(self):
@@ -48,18 +48,18 @@ class Facedancer:
         if len(data) != n:
             raise ValueError('Facedancer expected %d bytes but received only %d' % (n, len(data)))
         cmd = FacedancerCommand(app, verb, data)
-        self.logger.debug('Facedancer Rx command: %s' % cmd)
+        self.logger.verbose('Facedancer Rx command: %s' % cmd)
         return cmd
 
     def write(self, b):
         '''Write raw bytes.'''
-        self.logger.debug('Facedancer Tx: %s' % hexlify(b))
+        self.logger.verbose('Facedancer Tx: %s' % hexlify(b))
         self.serialport.write(b)
 
     def writecmd(self, c):
         '''Write a single command.'''
         self.write(c.as_bytestring())
-        self.logger.debug('Facedancer Tx command: %s' % c)
+        self.logger.verbose('Facedancer Tx command: %s' % c)
 
 
 class FacedancerCommand:
@@ -116,7 +116,7 @@ class FacedancerApp:
         self.logger.verbose('[%s] %s' % (self.app_name, msg), *args, **kwargs)
 
     def debug(self, msg, *args, **kwargs):
-        self.logger.debug('[%s] %s' % (self.app_name, msg), *args, **kwargs)
+        self.logger.verbose('[%s] %s' % (self.app_name, msg), *args, **kwargs)
 
     def info(self, msg, *args, **kwargs):
         self.logger.info('[%s] %s' % (self.app_name, msg), *args, **kwargs)

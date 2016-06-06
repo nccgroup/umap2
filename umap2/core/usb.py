@@ -20,6 +20,7 @@ class DescriptorType(object):
     device_qualifier = 0x06
     other_speed_configuration = 0x07
     interface_power = 0x08
+    bos = 0x0f
     hid = 0x21
     report = 0x22
     cs_interface = 0x24

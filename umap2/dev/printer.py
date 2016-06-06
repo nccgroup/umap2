@@ -1,6 +1,9 @@
-# USBPrinter.py
-#
-# Contains class definitions to implement a USB printer device.
+'''
+Contains class definitions to implement a USB printer device.
+
+Still not working well, linux fails to set altsetting 0 on iface 0
+and then we get exception from MAXUSBApp
+'''
 import time
 import struct
 
@@ -118,12 +121,6 @@ class USBPrinterInterface(USBInterface):
         self.device_class = USBPrinterClass(app)
         self.device_class.set_interface(self)
 
-        self.is_write_in_progress = False
-        self.write_cbw = None
-        self.write_base_lba = 0
-        self.write_length = 0
-        self.write_data = b''
-
     @mutable('handle_data_available')
     def handle_data_available(self, data):
         if not self.writing:
@@ -138,7 +135,7 @@ class USBPrinterInterface(USBInterface):
         if 'EOJ\n' in text_buffer:
             self.info("File write complete")
             out_file.close()
-            self.app.stop = True
+            self.writing = False
 
 
 class USBPrinterDevice(USBDevice):
@@ -148,16 +145,6 @@ class USBPrinterDevice(USBDevice):
         self, app, vid=0x03f0, pid=0x4417, rev=0x0001,
         usbclass=USBClass.Printer, subclass=1, proto=2
     ):
-        interfaces = [
-            USBPrinterInterface(0, app, usbclass, subclass, proto),
-            # USBPrinterInterface(1, app, 0xff, 1, 1),
-        ]
-        config = USBConfiguration(
-            app=app,
-            configuration_index=1,
-            configuration_string="Printer",
-            interfaces=interfaces
-        )
         super(USBPrinterDevice, self).__init__(
             app=app,
             device_class=USBClass.Unspecified,
@@ -170,7 +157,17 @@ class USBPrinterDevice(USBDevice):
             manufacturer_string="Hewlett-Packard",
             product_string="HP Color LaserJet CP1515n",
             serial_number_string="00CNC2618971",
-            configurations=[config],
+            configurations=[
+                USBConfiguration(
+                    app=app,
+                    index=1,
+                    string="Printer",
+                    interfaces=[
+                        USBPrinterInterface(0, app, usbclass, subclass, proto),
+                        # USBPrinterInterface(1, app, 0xff, 1, 1),
+                    ]
+                )
+            ],
         )
 
 

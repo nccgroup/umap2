@@ -31,9 +31,13 @@ def get_model(options):
     fuzzing_type = options['--type']
     model = GraphModel()
     if fuzzing_type == 'enumeration':
-        model.connect(device_descriptor)
-        model.connect(interface_descriptor)
-        model.connect(endpoint_descriptor)
+        p_configuration_descriptor = PseudoTemplate(name=configuration_descriptor.name)
+        # model.connect(device_descriptor)
+        model.connect(configuration_descriptor)
+        model.connect(p_configuration_descriptor)
+        model.connect(p_configuration_descriptor, configuration_descriptor)
+        # model.connect(interface_descriptor)
+        # model.connect(endpoint_descriptor)
         model.connect(string_descriptor)
         model.connect(string_descriptor_zero)
     elif fuzzing_type == 'smartcard':
@@ -48,16 +52,17 @@ def get_model(options):
         model.connect(smartcard_XfrBlock_response)
     elif fuzzing_type == 'mass-storage':
         model.connect(scsi_inquiry_response)
-        model.connect(scsi_mode_sense_10_response)
+        # model.connect(scsi_mode_sense_10_response)
         model.connect(scsi_mode_sense_6_response)
-        model.connect(scsi_read_10_response)
+        # model.connect(scsi_read_10_response)
         model.connect(scsi_read_capacity_10_response)
-        model.connect(scsi_read_format_capacities)
-        model.connect(scsi_request_sense_response)
+        # model.connect(scsi_read_format_capacities)
+        # model.connect(scsi_request_sense_response)
     else:
         msg = '''invalid fuzzing type, should be one of ['enumeration']'''
         raise Exception(msg)
     return model
+
 
 def get_controller(options):
     try:
@@ -66,7 +71,8 @@ def get_controller(options):
     except ValueError:
         msg = 'Please specify the --disconnect_delays as two comma-separated floats'
         raise Exception(msg)
-    return UmapController(pre_disconnect_delay,post_disconnect_delay)
+    return UmapController(pre_disconnect_delay, post_disconnect_delay)
+
 
 def main():
     options = docopt.docopt(__doc__)

@@ -183,11 +183,10 @@ class USBSmartcardInterface(USBInterface):
             interface_protocol=0,
             interface_string_index=0,
             endpoints=endpoints,
-            descriptors=descriptors
+            descriptors=descriptors,
+            device_class=USBSmartcardClass(app)
         )
 
-        self.device_class = USBSmartcardClass(app)
-        self.device_class.interface = self
         self.trigger = False
         self.initial_data = b'\x50\x03'
         self.proto = 0
@@ -463,11 +462,11 @@ class USBSmartcardInterface(USBInterface):
             self.error("Received Smartcard command not understood")
             response = b''
         if response:
-            self.configuration.device.app.send_on_endpoint(2, response)
+            self.app.send_on_endpoint(2, response)
 
     def handle_buffer_available(self):
         if not self.trigger:
-            self.configuration.device.app.send_on_endpoint(3, self.initial_data)
+            self.app.send_on_endpoint(3, self.initial_data)
             self.trigger = True
 
 
@@ -475,15 +474,6 @@ class USBSmartcardDevice(USBDevice):
     name = "USB Smartcard device"
 
     def __init__(self, app, vid=0x0bda, pid=0x0165, rev=0x2361, **kwargs):
-        interface = USBSmartcardInterface(app)
-
-        config = USBConfiguration(
-            app=app,
-            configuration_index=1,
-            configuration_string="Emulated Smartcard",
-            interfaces=[interface]
-        )
-
         super(USBSmartcardDevice, self).__init__(
             app=app,
             device_class=USBClass.Unspecified,
@@ -496,7 +486,16 @@ class USBSmartcardDevice(USBDevice):
             manufacturer_string="Generic",
             product_string="Smart Card Reader Interface",
             serial_number_string="20070818000000000",
-            configurations=[config],
+            configurations=[
+                USBConfiguration(
+                    app=app,
+                    index=1,
+                    string="Emulated Smartcard",
+                    interfaces=[
+                        USBSmartcardInterface(app)
+                    ]
+                )
+            ],
         )
 
 

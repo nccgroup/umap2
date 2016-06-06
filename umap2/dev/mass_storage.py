@@ -1,21 +1,23 @@
-# USBMassStorage.py
-#
-# Contains class definitions to implement a USB mass storage device.
 '''
 .. todo::
 
     Something to check all over the place - little/big endianess of data
+    It is better now (6/6/2016) but still needs improvements
 '''
 from mmap import mmap
 import os
 import struct
 from binascii import hexlify
+from threading import Thread, Event
+import time
 
+from six.moves.queue import Queue
 from umap2.core.usb_device import USBDevice
 from umap2.core.usb_configuration import USBConfiguration
 from umap2.core.usb_interface import USBInterface
 from umap2.core.usb_endpoint import USBEndpoint
 from umap2.core.usb_class import USBClass
+from umap2.core.usb_base import USBBaseActor
 from umap2.fuzz.wrappers import mutable
 
 
@@ -72,75 +74,53 @@ class USBMassStorageClass(USBClass):
         return b'\x00'
 
 
-class USBMassStorageInterface(USBInterface):
-    '''
-    .. todo:: all handlers - should be more dynamic??
-    '''
-    name = "USB mass storage interface"
+class DiskImage:
+    def __init__(self, filename, block_size):
+        self.filename = filename
+        self.block_size = block_size
 
-    def __init__(self, app, disk_image, usbclass, sub, proto):
+        statinfo = os.stat(self.filename)
+        self.size = statinfo.st_size
+
+        self.file = open(self.filename, 'r+b')
+        self.image = mmap(self.file.fileno(), 0)
+
+    def close(self):
+        self.image.flush()
+        self.image.close()
+
+    def get_sector_count(self):
+        return int(self.size / self.block_size) - 1
+
+    def get_sector_data(self, address):
+        block_start = address * self.block_size
+        block_end = (address + 1) * self.block_size   # slices are NON-inclusive
+
+        return self.image[block_start:block_end]
+
+    def put_sector_data(self, address, data):
+        block_start = address * self.block_size
+        block_end = (address + 1) * self.block_size   # slices are NON-inclusive
+
+        self.image[block_start:block_end] = data[:self.block_size]
+        self.image.flush()
+
+
+def scsi_status(cbw, status):
+    csw = b'USBS' + cbw.tag + struct.pack('<IB', 0x00000000, status)
+    return csw
+
+
+class ScsiDevice(USBBaseActor):
+    '''
+    Implementation of subset of the SCSI protocol
+    '''
+    name = 'SCSI stack'
+
+    def __init__(self, app, disk_image):
+        super(ScsiDevice, self).__init__(app)
         self.disk_image = disk_image
-        descriptors = {}
-
-        endpoints = [
-            USBEndpoint(
-                app=app,
-                number=1,
-                direction=USBEndpoint.direction_out,
-                transfer_type=USBEndpoint.transfer_type_bulk,
-                sync_type=USBEndpoint.sync_type_none,
-                usage_type=USBEndpoint.usage_type_data,
-                max_packet_size=0x40,
-                interval=0,
-                handler=self.handle_data_available
-            ),
-            # USBEndpoint(
-            #     app=app,
-            #     number=2,
-            #     direction=USBEndpoint.direction_in,
-            #     transfer_type=USBEndpoint.transfer_type_interrupt,
-            #     sync_type=USBEndpoint.sync_type_none,
-            #     usage_type=USBEndpoint.usage_type_data,
-            #     max_packet_size=0x40,
-            #     interval=0,
-            #     handler=None
-            # ),
-            USBEndpoint(
-                app=app,
-                number=3,
-                direction=USBEndpoint.direction_in,
-                transfer_type=USBEndpoint.transfer_type_bulk,
-                sync_type=USBEndpoint.sync_type_none,
-                usage_type=USBEndpoint.usage_type_data,
-                max_packet_size=0x40,
-                interval=0,
-                handler=None
-            )
-        ]
-
-        # TODO: un-hardcode string index (last arg before "verbose")
-        super(USBMassStorageInterface, self).__init__(
-            app=app,
-            interface_number=0,
-            interface_alternate=0,
-            interface_class=usbclass,
-            interface_subclass=sub,
-            interface_protocol=proto,
-            interface_string_index=0,
-            endpoints=endpoints,
-            descriptors=descriptors
-        )
-
-        self.device_class = USBMassStorageClass(app)
-        self.device_class.set_interface(self)
-
-        self.is_write_in_progress = False
-        self.write_cbw = None
-        self.write_base_lba = 0
-        self.write_length = 0
-        self.write_data = b''
-
-        self.operations = {
+        self.handlers = {
             ScsiCmds.INQUIRY: self.handle_inquiry,
             ScsiCmds.REQUEST_SENSE: self.handle_request_sense,
             ScsiCmds.TEST_UNIT_READY: self.handle_test_unit_ready,
@@ -157,10 +137,61 @@ class USBMassStorageInterface(USBInterface):
             ScsiCmds.READ_FORMAT_CAPACITIES: self.handle_read_format_capacities,
             ScsiCmds.SYNCHRONIZE_CACHE: self.handle_synchronize_cache,
         }
+        self.tx = Queue()
+        self.rx = Queue()
+        self.stop_event = Event()
+        self.thread = Thread(target=self.handle_data_loop)
+        self.thread.daemon = True
+        self.thread.start()
+        self.is_write_in_progress = False
+        self.write_cbw = None
+        self.write_base_lba = 0
+        self.write_length = 0
+        self.write_data = b''
+
+    def stop(self):
+        self.stop_event.set()
+
+    def handle_data_loop(self):
+        while not self.stop_event.isSet():
+            if not self.rx.empty():
+                data = self.rx.get()
+                self.handle_data(data)
+            else:
+                time.sleep(0.0001)
+
+    def handle_data(self, data):
+        if self.is_write_in_progress:
+            self.handle_write_data(data)
+        else:
+            cbw = CommandBlockWrapper(data)
+            opcode = cbw.opcode
+            if opcode in self.handlers:
+                try:
+                    resp = self.handlers[opcode](cbw)
+                    if resp is not None:
+                        self.tx.put(resp)
+                    self.tx.put(scsi_status(cbw, 0))
+                except Exception as ex:
+                    self.warning('exception while proceeing opcode %#x' % (opcode))
+                    self.warning(ex)
+                    self.tx.put(scsi_status(cbw, 2))
+            else:
+                raise Exception('No handler for opcode %#x' % (opcode))
+
+    def handle_write_data(self, data):
+        self.debug("got %#x bytes of SCSI write data" % (len(data)))
+        self.write_data += data
+        if len(self.write_data) >= self.write_length:
+            # done writing
+            self.disk_image.put_sector_data(self.write_base_lba, self.write_data)
+            self.is_write_in_progress = False
+            self.write_data = b''
+            self.tx.put(scsi_status(self.write_cbw, 0))
 
     @mutable('scsi_inquiry_response')
     def handle_inquiry(self, cbw):
-        self.debug('got SCSI Inquiry, data: %s' % hexlify(cbw.cb[1:]))
+        self.debug('SCSI Inquiry, data: %s' % hexlify(cbw.cb[1:]))
         peripheral = 0x00  # SBC
         RMB = 0x80  # Removable
         version = 0x00
@@ -169,7 +200,6 @@ class USBMassStorageInterface(USBInterface):
         vendor_id = b'PNY     '
         product_id = b'USB 2.0 FD      '
         product_revision_level = b'8.02'
-
         part1 = struct.pack('BBBB', peripheral, RMB, version, response_data_format)
         part2 = struct.pack('BBB', *config) + vendor_id + product_id + product_revision_level
         length = struct.pack('B', len(part2))
@@ -178,7 +208,7 @@ class USBMassStorageInterface(USBInterface):
 
     @mutable('scsi_request_sense_response')
     def handle_request_sense(self, cbw):
-        self.debug("got SCSI Request Sense, data: %s" % hexlify(cbw.cb[1:]))
+        self.debug("SCSI Request Sense, data: %s" % hexlify(cbw.cb[1:]))
         response_code = 0x70
         valid = 0x00
         filemark = 0x06
@@ -204,11 +234,11 @@ class USBMassStorageInterface(USBInterface):
 
     @mutable('scsi_test_unit_ready_response')
     def handle_test_unit_ready(self, cbw):
-        self.debug("got SCSI Test Unit Ready")
+        self.debug("SCSI Test Unit Ready, logical unit number: %02x" % (cbw.cb[1]))
 
     @mutable('scsi_read_capacity_10_response')
     def handle_read_capacity_10(self, cbw):
-        self.debug("got SCSI Read Capacity, data: %s" % hexlify(cbw.cb[1:]))
+        self.debug("SCSI Read Capacity, data: %s" % hexlify(cbw.cb[1:]))
         lastlba = self.disk_image.get_sector_count()
         logical_block_address = struct.pack('>I', lastlba)
         length = 0x00000200
@@ -221,16 +251,16 @@ class USBMassStorageInterface(USBInterface):
 
     @mutable('scsi_prevent_allow_medium_removal_response')
     def handle_prevent_allow_medium_removal(self, cbw):
-        self.debug("got SCSI Prevent/Allow Removal")
+        self.debug("SCSI Prevent/Allow Removal")
 
     @mutable('scsi_write_10_response')
     def handle_write_10(self, cbw):
-        self.debug("got SCSI Write (10), data: %s" % hexlify(cbw.cb[1:]))
+        self.debug("SCSI Write (10), data: %s" % hexlify(cbw.cb[1:]))
 
         base_lba = struct.unpack('>I', cbw.cb[2:6])[0]
         num_blocks = struct.unpack('>H', cbw.cb[7:9])[0]
 
-        self.debug("got SCSI Write (10), lba", base_lba, "+",  num_blocks, "block(s)")
+        self.debug("SCSI Write (10), lba %#x + %#x block(s)" % (base_lba, num_blocks))
 
         # save for later
         self.write_cbw = cbw
@@ -238,21 +268,13 @@ class USBMassStorageInterface(USBInterface):
         self.write_length = num_blocks * self.disk_image.block_size
         self.is_write_in_progress = True
 
-    @mutable('scsi_read_10_response')
     def handle_read_10(self, cbw):
-        '''
-        .. todo:: do we want to fuzz each message in the inner loop separatley?
-        '''
         base_lba = struct.unpack('>I', cbw.cb[2:6])[0]
         num_blocks = struct.unpack('>H', cbw.cb[7:9])[0]
-
-        self.debug("got SCSI Read (10), lba", base_lba, "+", num_blocks, "block(s)")
-
-        # Note that here we send the data directly rather than putting
-        # something in 'response' and letting the end of the switch send
+        self.debug("SCSI Read (10), lba %#x + %#x block(s)" % (base_lba, num_blocks))
         for block_num in range(num_blocks):
             data = self.disk_image.get_sector_data(base_lba + block_num)
-            self.configuration.device.app.send_on_endpoint(3, data)
+            self.tx.put(data)
 
     @mutable('scsi_write_6_response')
     def handle_write_6(self, cbw):
@@ -269,7 +291,7 @@ class USBMassStorageInterface(USBInterface):
     def handle_scsi_mode_sense(self, cbw):
         page = cbw.cb[2] & 0x3f
 
-        self.debug("got SCSI Mode Sense, page code 0x%02x" % page)
+        self.debug("SCSI Mode Sense, page code 0x%02x" % page)
 
         if page == 0x1c:
             medium_type = 0x00
@@ -307,7 +329,7 @@ class USBMassStorageInterface(USBInterface):
 
     @mutable('scsi_read_format_capacities')
     def handle_read_format_capacities(self, cbw):
-        self.debug("got SCSI Read Format Capacity")
+        self.debug("SCSI Read Format Capacity")
         # header
         response = struct.pack('>I', 8)
         num_sectors = 0x1000
@@ -316,109 +338,23 @@ class USBMassStorageInterface(USBInterface):
         response += struct.pack('>IHH', num_sectors, reserved, sector_size)
         return response
 
+    @mutable('scsi_synchronize_cache_response')
     def handle_synchronize_cache(self, cbw):
-        self.debug("got Synchronize Cache (10)")
-
-    def handle_data_available(self, data):
-        self.debug("handling %d bytes of SCSI data" % (len(data)))
-        self.supported()
-        cbw = CommandBlockWrapper(data)
-        opcode = cbw.cb[0]
-        status = 0              # default to success
-        response = None         # with no response data
-
-        if self.is_write_in_progress:
-            self.debug("got %d bytes of SCSI write data" % (len(data)))
-
-            self.write_data += data
-
-            if len(self.write_data) < self.write_length:
-                # more yet to read, don't send the CSW
-                return
-
-            self.disk_image.put_sector_data(self.write_base_lba, self.write_data)
-            cbw = self.write_cbw
-
-            self.is_write_in_progress = False
-            self.write_data = b''
-
-        if opcode in self.operations:
-            handler = self.operations[opcode]
-            try:
-                response = handler(cbw)
-                if opcode == ScsiCmds.WRITE_10:
-                    # because we need to snarf up the data from wire before we reply
-                    # with the CSW
-                    return
-            except NotImplementedError as ex:
-                self.error('Command %02x is not implemented yet (though it should be supported...)' % opcode)
-                raise ex
-        else:
-            self.warning(self.name, "received unsupported SCSI opcode 0x%x" % opcode)
-            status = 0x02   # command failed
-            if cbw.data_transfer_length > 0:
-                response = b'\x00' * cbw.data_transfer_length
-
-        if response:
-            self.verbose(self.name, "responding with %d bytes: %s" % (len(response), hexlify(response)))
-            self.configuration.device.app.send_on_endpoint(3, response)
-
-        csw = b'USBS'
-        csw += struct.pack(
-            '<BBBBBBBBB',
-            cbw.tag[0], cbw.tag[1], cbw.tag[2], cbw.tag[3],
-            0x00, 0x00, 0x00, 0x00,
-            status
-        )
-
-        self.verbose(self.name, "responding with status =", status)
-
-        self.configuration.device.app.send_on_endpoint(3, csw)
-
-
-class DiskImage:
-    def __init__(self, filename, block_size):
-        self.filename = filename
-        self.block_size = block_size
-
-        statinfo = os.stat(self.filename)
-        self.size = statinfo.st_size
-
-        self.file = open(self.filename, 'r+b')
-        self.image = mmap(self.file.fileno(), 0)
-
-    def close(self):
-        self.image.flush()
-        self.image.close()
-
-    def get_sector_count(self):
-        return int(self.size / self.block_size) - 1
-
-    def get_sector_data(self, address):
-        block_start = address * self.block_size
-        block_end = (address + 1) * self.block_size   # slices are NON-inclusive
-
-        return self.image[block_start:block_end]
-
-    def put_sector_data(self, address, data):
-        block_start = address * self.block_size
-        block_end = (address + 1) * self.block_size   # slices are NON-inclusive
-
-        self.image[block_start:block_end] = data[:self.block_size]
-        self.image.flush()
+        self.debug("Synchronize Cache (10)")
 
 
 class CommandBlockWrapper:
     def __init__(self, bytestring):
-        bytestring = bytearray(bytestring)
+        as_array = bytearray(bytestring)
         self.signature = bytestring[0:4]
         self.tag = bytestring[4:8]
-        self.data_transfer_length = struct.unpack('<I', bytestring[8:12])[0]
-        self.flags = bytestring[12]
-        self.lun = bytestring[13] & 0x0f
-        self.cb_length = bytestring[14] & 0x1f
+        self.data_transfer_length = struct.unpack('<I', as_array[8:12])[0]
+        self.flags = as_array[12]
+        self.lun = as_array[13] & 0x0f
+        self.cb_length = as_array[14] & 0x1f
         # self.cb = bytestring[15:15+self.cb_length]
-        self.cb = bytestring[15:]
+        self.cb = as_array[15:]
+        self.opcode = self.cb[0]
 
     def __str__(self):
         s = "sig: %s\n" % hexlify(self.signature)
@@ -431,23 +367,82 @@ class CommandBlockWrapper:
         return s
 
 
+class USBMassStorageInterface(USBInterface):
+    '''
+    .. todo:: all handlers - should be more dynamic??
+    '''
+    name = "USB mass storage interface"
+
+    def __init__(self, app, scsi_device, usbclass, sub, proto):
+        # TODO: un-hardcode string index
+        super(USBMassStorageInterface, self).__init__(
+            app=app,
+            interface_number=0,
+            interface_alternate=0,
+            interface_class=usbclass,
+            interface_subclass=sub,
+            interface_protocol=proto,
+            interface_string_index=0,
+            endpoints=[
+                USBEndpoint(
+                    app=app,
+                    number=1,
+                    direction=USBEndpoint.direction_out,
+                    transfer_type=USBEndpoint.transfer_type_bulk,
+                    sync_type=USBEndpoint.sync_type_none,
+                    usage_type=USBEndpoint.usage_type_data,
+                    max_packet_size=0x40,
+                    interval=0,
+                    handler=self.handle_data_available
+                ),
+                USBEndpoint(
+                    app=app,
+                    number=3,
+                    direction=USBEndpoint.direction_in,
+                    transfer_type=USBEndpoint.transfer_type_bulk,
+                    sync_type=USBEndpoint.sync_type_none,
+                    usage_type=USBEndpoint.usage_type_data,
+                    max_packet_size=0x40,
+                    interval=0,
+                    handler=self.handle_buffer_available
+                ),
+                # USBEndpoint(
+                #     app=app,
+                #     number=2,
+                #     direction=USBEndpoint.direction_in,
+                #     transfer_type=USBEndpoint.transfer_type_interrupt,
+                #     sync_type=USBEndpoint.sync_type_none,
+                #     usage_type=USBEndpoint.usage_type_data,
+                #     max_packet_size=0x40,
+                #     interval=0,
+                #     handler=None
+                # ),
+            ],
+            device_class=USBMassStorageClass(app),
+        )
+        self.scsi_device = scsi_device
+
+    def handle_buffer_available(self):
+        if not self.scsi_device.tx.empty():
+            data = self.scsi_device.tx.get()
+            self.app.send_on_endpoint(3, data)
+
+    def handle_data_available(self, data):
+        self.debug("handling %d bytes of SCSI data" % (len(data)))
+        self.supported()
+        self.scsi_device.rx.put(data)
+
+
 class USBMassStorageDevice(USBDevice):
     name = "USB mass storage device"
 
     def __init__(
         self, app, vid=0x154b, pid=0x6545, rev=0x0002,
-        usbclass=USBClass.MassStorage, subclass=0, proto=0,
+        usbclass=USBClass.MassStorage, subclass=0x06, proto=0x50,
         disk_image_filename='stick.img'
     ):
         self.disk_image = DiskImage(disk_image_filename, 0x200)
-        interface = USBMassStorageInterface(app, self.disk_image, usbclass, subclass, proto)
-
-        config = USBConfiguration(
-            app=app,
-            configuration_index=1,
-            configuration_string="MassStorage config",
-            interfaces=[interface]
-        )
+        self.scsi_device = ScsiDevice(app, DiskImage(disk_image_filename, 0x200))
 
         super(USBMassStorageDevice, self).__init__(
             app=app,
@@ -461,12 +456,22 @@ class USBMassStorageDevice(USBDevice):
             manufacturer_string="PNY",
             product_string="USB 2.0 FD",
             serial_number_string="4731020ef1914da9",
-            configurations=[config],
+            configurations=[
+                USBConfiguration(
+                    app=app,
+                    index=1,
+                    string="MassStorage config",
+                    interfaces=[
+                        USBMassStorageInterface(app, self.scsi_device, usbclass, subclass, proto)
+                    ]
+                )
+            ],
         )
 
     def disconnect(self):
+        super(USBMassStorageDevice, self).disconnect()
+        self.scsi_device.stop()
         self.disk_image.close()
-        USBDevice.disconnect(self)
 
 
 usb_device = USBMassStorageDevice

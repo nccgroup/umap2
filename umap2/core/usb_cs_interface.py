@@ -48,12 +48,12 @@ class USBCSInterface(USBBaseActor):
 
         if response:
             n = min(n, len(response))
-            self.configuration.device.app.send_on_endpoint(0, response[:n])
+            self.app.send_on_endpoint(0, response[:n])
             self.verbose('sent %d bytes in response' % (n))
 
     def handle_set_interface_request(self, req):
         self.info('received SET_INTERFACE request')
-        self.configuration.device.app.stall_ep0()
+        self.app.stall_ep0()
 
     # Table 9-12 of USB 2.0 spec (pdf page 296)
     @mutable('usbcsinterface_descriptor')

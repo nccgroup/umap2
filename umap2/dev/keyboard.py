@@ -54,23 +54,6 @@ class USBKeyboardInterface(USBInterface):
     name = "USB keyboard interface"
 
     def __init__(self, app):
-        descriptors = {
-            DescriptorType.hid: self.get_hid_descriptor,
-            DescriptorType.report: self.get_report_descriptor
-        }
-
-        endpoint = USBEndpoint(
-            app=app,
-            number=2,
-            direction=USBEndpoint.direction_in,
-            transfer_type=USBEndpoint.transfer_type_interrupt,
-            sync_type=USBEndpoint.sync_type_none,
-            usage_type=USBEndpoint.usage_type_data,
-            max_packet_size=0x40,
-            interval=10,
-            handler=self.handle_buffer_available
-        )
-
         # TODO: un-hardcode string index (last arg before "verbose")
         super(USBKeyboardInterface, self).__init__(
             app=app,
@@ -80,12 +63,25 @@ class USBKeyboardInterface(USBInterface):
             interface_subclass=0,
             interface_protocol=0,
             interface_string_index=0,
-            endpoints=[endpoint],
-            descriptors=descriptors
+            endpoints=[
+                USBEndpoint(
+                    app=app,
+                    number=2,
+                    direction=USBEndpoint.direction_in,
+                    transfer_type=USBEndpoint.transfer_type_interrupt,
+                    sync_type=USBEndpoint.sync_type_none,
+                    usage_type=USBEndpoint.usage_type_data,
+                    max_packet_size=0x40,
+                    interval=10,
+                    handler=self.handle_buffer_available
+                )
+            ],
+            descriptors={
+                DescriptorType.hid: self.get_hid_descriptor,
+                DescriptorType.report: self.get_report_descriptor
+            },
+            device_class=USBKeyboardClass(app)
         )
-
-        self.device_class = USBKeyboardClass(app)
-        self.device_class.set_interface(self)
 
         empty_preamble = [0x00] * 10
         text = [0x0f, 0x00, 0x16, 0x00, 0x28, 0x00]
@@ -186,20 +182,13 @@ class USBKeyboardInterface(USBInterface):
     def type_letter(self, letter, modifiers=0):
         data = struct.pack('<BBB', 0, 0, ord(letter))
         self.verbose(self.name, "sending keypress 0x%02x" % ord(letter))
-        self.configuration.device.app.send_on_endpoint(2, data)
+        self.app.send_on_endpoint(2, data)
 
 
 class USBKeyboardDevice(USBDevice):
     name = "USB keyboard device"
 
     def __init__(self, app, vid=0x610b, pid=0x4653, rev=0x1234, **kwargs):
-        interface = USBKeyboardInterface(app)
-        config = USBConfiguration(
-            app=app,
-            configuration_index=1,
-            configuration_string="Emulated Keyboard",
-            interfaces=[interface]
-        )
         super(USBKeyboardDevice, self).__init__(
             app=app,
             device_class=USBClass.Unspecified,
@@ -212,8 +201,16 @@ class USBKeyboardDevice(USBDevice):
             manufacturer_string="Dell",
             product_string="Dell USB Entry Keyboard",
             serial_number_string="00001",
-            configurations=[config],
-            descriptors={},
+            configurations=[
+                USBConfiguration(
+                    app=app,
+                    index=1,
+                    string="Emulated Keyboard",
+                    interfaces=[
+                        USBKeyboardInterface(app)
+                    ]
+                )
+            ],
         )
 
 

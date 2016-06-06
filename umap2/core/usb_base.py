@@ -3,6 +3,7 @@ Common functionality for all USB actors (interface, class, etc.)
 '''
 import time
 import logging
+import traceback
 
 start_time = time.time()
 

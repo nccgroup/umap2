@@ -7,6 +7,7 @@ from umap2.fuzz.wrappers import mutable
 
 
 class USBEndpoint(USBBaseActor):
+    name = 'USB Endpoint'
     direction_out = 0x00
     direction_in = 0x01
 
@@ -62,11 +63,11 @@ class USBEndpoint(USBBaseActor):
         }
 
     def handle_clear_feature_request(self, req):
-        self.interface.configuration.device.app.send_on_endpoint(0, b'')
+        self.interface.app.send_on_endpoint(0, b'')
 
     def handle_get_status(self, req):
         self.info('in GET_STATUS of endpoint %d' % self.number)
-        self.interface.configuration.device.app.send_on_endpoint(0, b'\x00\x00')
+        self.interface.app.send_on_endpoint(0, b'\x00\x00')
 
     def set_interface(self, interface):
         self.interface = interface

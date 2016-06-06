@@ -10,6 +10,7 @@ def prepare_logging():
             if self.isEnabledFor(num):
                 self._log(num, message, args, **kwargs)
         logging.addLevelName(num, name)
+        setattr(logging, name, num)
         return fn
 
     logging.Logger.verbose = add_debug_level(5, 'VERBOSE')

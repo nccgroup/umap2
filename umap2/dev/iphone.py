@@ -198,8 +198,7 @@ class USBIphoneDevice(USBDevice):
             "a9f579a7e04281fbf77fe04d06b5cc083e6eb5a3",  # serial number string
             config,
         )
-        self.device_vendor = USBIphoneVendor()
-        self.device_vendor.set_device(self)
+        self.device_vendor = USBIphoneVendor(app=app, device=self)
 
 
 usb_device = USBIphoneDevice

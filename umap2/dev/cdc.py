@@ -1,8 +1,6 @@
-# USBCDC.py
-#
-# Contains class definitions to implement a USB CDC device.
-
 '''
+Contains class definitions to implement a USB CDC device.
+
 .. todo:: see here re-enpoints <http://janaxelson.com/usb_virtual_com_port.htm>_
 '''
 from umap2.core.usb_class import USBClass
@@ -32,121 +30,93 @@ class USBCDCClass(USBClass):
         return b''
 
 
-class USBCDCInterface(USBInterface):
-    name = "USB CDC interface"
+class USBCommunicationInterface(USBInterface):
 
-    def __init__(self, int_num, app, usbclass, sub, proto):
-        descriptors = {}
-        self.name = USBCDCInterface.name + '(%s)' % int_num
-        cs_config1 = [
-            0x00,  # Header Functional Descriptor
-            0x1001,  # bcdCDC
-        ]
+    name = "USB Communication Interface"
 
+    def __init__(self, app, int_num, data_iface_num):
         bmCapabilities = 0x03
-        bDataInterface = 0x01
-
-        cs_config2 = [
-            0x01,  # Call Management Functional Descriptor
-            bmCapabilities,
-            bDataInterface
-        ]
-
-        bmCapabilities = 0x06
-
-        cs_config3 = [
-            0x02,  # Abstract Control Management Functional Descriptor
-            bmCapabilities
-        ]
-
-        bControlInterface = 0
-        bSubordinateInterface0 = 1
-
-        cs_config4 = [
-            0x06,  # Union Functional Descriptor
-            bControlInterface,
-            bSubordinateInterface0
-        ]
-
-        cs_interfaces0 = [
-            USBCSInterface(app, cs_config1, 2, 2, 1),
-            USBCSInterface(app, cs_config2, 2, 2, 1),
-            USBCSInterface(app, cs_config3, 2, 2, 1),
-            USBCSInterface(app, cs_config4, 2, 2, 1)
-        ]
-
-        cs_interfaces1 = []
-
-        endpoints0 = [
-            USBEndpoint(
-                app=app,
-                number=0x3,
-                direction=USBEndpoint.direction_in,
-                transfer_type=USBEndpoint.transfer_type_interrupt,
-                sync_type=USBEndpoint.sync_type_none,
-                usage_type=USBEndpoint.usage_type_data,
-                max_packet_size=0x40,
-                interval=0xff,
-                handler=self.handle_ep3_buffer_available
-            )
-        ]
-
-        endpoints1 = [
-            USBEndpoint(
-                app=app,
-                number=0x1,
-                direction=USBEndpoint.direction_out,
-                transfer_type=USBEndpoint.transfer_type_bulk,
-                sync_type=USBEndpoint.sync_type_none,
-                usage_type=USBEndpoint.usage_type_data,
-                max_packet_size=0x40,
-                interval=0x00,
-                handler=self.handle_ep1_data_available
-            ),
-            USBEndpoint(
-                app=app,
-                number=0x2,
-                direction=USBEndpoint.direction_in,
-                transfer_type=USBEndpoint.transfer_type_bulk,
-                sync_type=USBEndpoint.sync_type_none,
-                usage_type=USBEndpoint.usage_type_data,
-                max_packet_size=0x40,
-                interval=0x00,
-                handler=self.handle_ep2_buffer_available
-            )
-        ]
-
-        if int_num == 0:
-            endpoints = endpoints0
-            cs_interfaces = cs_interfaces0
-
-        elif int_num == 1:
-            endpoints = endpoints1
-            cs_interfaces = cs_interfaces1
-
-        # TODO: un-hardcode string index (last arg before "verbose")
-        super(USBCDCInterface, self).__init__(
+        bControlInterface = int_num
+        bDataInterface = data_iface_num
+        super(USBCommunicationInterface, self).__init__(
             app=app,
             interface_number=int_num,
             interface_alternate=0,
-            interface_class=usbclass,
-            interface_subclass=sub,
-            interface_protocol=proto,
+            interface_class=USBClass.CDC,
+            interface_subclass=0x02,
+            interface_protocol=0x01,
             interface_string_index=0,
-            endpoints=endpoints,
-            descriptors=descriptors,
-            cs_interfaces=cs_interfaces
+            endpoints=[
+                USBEndpoint(
+                    app=app,
+                    number=0x3,
+                    direction=USBEndpoint.direction_in,
+                    transfer_type=USBEndpoint.transfer_type_interrupt,
+                    sync_type=USBEndpoint.sync_type_none,
+                    usage_type=USBEndpoint.usage_type_data,
+                    max_packet_size=0x40,
+                    interval=0xff,
+                    handler=self.handle_ep3_buffer_available
+                )
+            ],
+            cs_interfaces=[
+                # Header Functional Descriptor
+                USBCSInterface(app, [0x00, 0x1001], 2, 2, 1),
+                # Call Management Functional Descriptor
+                USBCSInterface(app, [0x01, bmCapabilities, bDataInterface], 2, 2, 1),
+                USBCSInterface(app, [0x02, bmCapabilities], 2, 2, 1),
+                USBCSInterface(app, [0x06, bControlInterface, bDataInterface], 2, 2, 1)
+            ],
+            device_class=USBCDCClass(app)
         )
 
-        self.device_class = USBCDCClass(app)
-        self.device_class.set_interface(self)
+    def handle_ep3_buffer_available(self):
+        self.logger.debug('ep3 buffer available')
+
+
+class USBCDCDataInterface(USBInterface):
+    name = "USB CDC Data interface"
+
+    def __init__(self, app, int_num):
+        # TODO: un-hardcode string index (last arg before "verbose")
+        super(USBCDCDataInterface, self).__init__(
+            app=app,
+            interface_number=int_num,
+            interface_alternate=0,
+            interface_class=USBClass.CDCData,
+            interface_subclass=0,
+            interface_protocol=0,
+            interface_string_index=0,
+            endpoints=[
+                USBEndpoint(
+                    app=app,
+                    number=0x1,
+                    direction=USBEndpoint.direction_out,
+                    transfer_type=USBEndpoint.transfer_type_bulk,
+                    sync_type=USBEndpoint.sync_type_none,
+                    usage_type=USBEndpoint.usage_type_data,
+                    max_packet_size=0x40,
+                    interval=0x00,
+                    handler=self.handle_ep1_data_available
+                ),
+                USBEndpoint(
+                    app=app,
+                    number=0x2,
+                    direction=USBEndpoint.direction_in,
+                    transfer_type=USBEndpoint.transfer_type_bulk,
+                    sync_type=USBEndpoint.sync_type_none,
+                    usage_type=USBEndpoint.usage_type_data,
+                    max_packet_size=0x40,
+                    interval=0x00,
+                    handler=self.handle_ep2_buffer_available
+                )
+            ],
+            device_class=USBCDCClass(app)
+        )
 
     @mutable('cdc_handle_ep1_data_available')
     def handle_ep1_data_available(self, data):
         self.logger.debug("handling", len(data), "bytes of cdc data")
-
-    def handle_ep3_buffer_available(self):
-        self.logger.debug('ep3 buffer available')
 
     def handle_ep2_buffer_available(self):
         self.logger.debug('ep2 buffer available')
@@ -156,16 +126,6 @@ class USBCDCDevice(USBDevice):
     name = "USB CDC device"
 
     def __init__(self, app, vid=0x2548, pid=0x1001, rev=0x0010, **kwargs):
-        interface0 = USBCDCInterface(0, app, USBClass.CDC, 0x02, 0x01)
-        interface1 = USBCDCInterface(1, app, USBClass.CDCData, 0x00, 0x00)
-
-        config = USBConfiguration(
-            app=app,
-            configuration_index=1,
-            configuration_string="Emulated CDC",
-            interfaces=[interface0, interface1]
-        )
-
         super(USBCDCDevice, self).__init__(
             app=app,
             device_class=USBClass.CDC,
@@ -178,8 +138,17 @@ class USBCDCDevice(USBDevice):
             manufacturer_string="Vendor",
             product_string="Product",
             serial_number_string="Serial",
-            configurations=[config],
-            descriptors={},
+            configurations=[
+                USBConfiguration(
+                    app=app,
+                    index=1,
+                    string="Emulated CDC",
+                    interfaces=[
+                        USBCommunicationInterface(app, 0, 1),
+                        USBCDCDataInterface(app, 1)
+                    ]
+                )
+            ],
         )
 
 

@@ -10,27 +10,29 @@ from umap2.fuzz.wrappers import mutable
 
 
 class USBDevice(USBBaseActor):
-    name = "generic device"
+    name = "USB Device"
 
     def __init__(
             self, app, device_class, device_subclass,
             protocol_rel_num, max_packet_size_ep0, vendor_id, product_id,
             device_rev, manufacturer_string, product_string,
-            serial_number_string, configurations=None, descriptors=None):
+            serial_number_string, configurations=None, descriptors=None,
+            device_vendor=None):
         '''
-        :params app: phy application (to communicate with actual device)
-        :params device_class: device class
-        :params device_subclass: device subclass
-        :params protocol_rel_num: protocol release number
-        :params max_packet_size_ep0: maximum oacket size on EP0
-        :params vendor_id: vendor id (i.e. VID)
-        :params product_id: product id (i.e. PID)
-        :params device_rev: device revision
-        :params manufacturer_string: manufacturer name string
-        :params product_string: product name string
-        :params serial_number_string: serial number string
-        :params configurations: list of available configurations (default: None)
-        :params descriptors: dict of handler for descriptor requests (default: None)
+        :param app: phy application (to communicate with actual device)
+        :param device_class: device class
+        :param device_subclass: device subclass
+        :param protocol_rel_num: protocol release number
+        :param max_packet_size_ep0: maximum oacket size on EP0
+        :param vendor_id: vendor id (i.e. VID)
+        :param product_id: product id (i.e. PID)
+        :param device_rev: device revision
+        :param manufacturer_string: manufacturer name string
+        :param product_string: product name string
+        :param serial_number_string: serial number string
+        :param configurations: list of available configurations (default: None)
+        :param descriptors: dict of handler for descriptor requests (default: None)
+        :param device_vendor: USB device vendor (default: None)
         '''
         super(USBDevice, self).__init__(app)
         if configurations is None:
@@ -51,7 +53,9 @@ class USBDevice(USBBaseActor):
         self.product_id = product_id
         self.device_rev = device_rev
 
-        self.device_vendor = None
+        self.device_vendor = device_vendor
+        if self.device_vendor:
+            self.device_vendor.set_device(self)
 
         self.manufacturer_string_id = self.get_string_id(manufacturer_string)
         self.product_string_id = self.get_string_id(product_string)
@@ -70,8 +74,8 @@ class USBDevice(USBBaseActor):
         self.configurations = configurations
 
         for c in self.configurations:
-            csi = self.get_string_id(c.configuration_string)
-            c.set_configuration_string_index(csi)
+            csi = self.get_string_id(c.get_string())
+            c.set_string_index(csi)
             c.set_device(self)
 
         self.state = State.detached
@@ -151,16 +155,13 @@ class USBDevice(USBBaseActor):
     #####################################################
     @mutable('device_qualifier_descriptor')
     def get_device_qualifier_descriptor(self, n):
-
-        bLength = 10
         bDescriptorType = 6
         bNumConfigurations = len(self.configurations)
         bReserved = 0
         bMaxPacketSize0 = self.max_packet_size_ep0
 
         d = struct.pack(
-            '<BBHBBBBBB',
-            bLength,
+            '<BHBBBBBB',
             bDescriptorType,
             self.usb_spec_version,
             self.device_class,
@@ -170,12 +171,12 @@ class USBDevice(USBBaseActor):
             bNumConfigurations,
             bReserved
         )
-
+        d = struct.pack('B', len(d) + 1) + d
         return d
 
     def handle_request(self, buf):
         req = USBDeviceRequest(buf)
-        self.debug("received request", req)
+        self.debug("received request: %s" % req)
 
         # figure out the intended recipient
         recipient_type = req.get_recipient()
@@ -184,12 +185,13 @@ class USBDevice(USBBaseActor):
         if recipient_type == Request.recipient_device:
             recipient = self
         elif recipient_type == Request.recipient_interface:
-            if (index & 0xff) < len(self.configuration.interfaces):
-                recipient = self.configuration.interfaces[(index & 0xff)]
+            index = index & 0xff
+            if index < len(self.configuration.interfaces):
+                recipient = self.configuration.interfaces[index]
         elif recipient_type == Request.recipient_endpoint:
             recipient = self.endpoints.get(index, None)
         elif recipient_type == Request.recipient_other:
-            recipient = self.configuration.interfaces[0]    # HACK for Hub class
+            recipient = self.configuration.interfaces[0]  # HACK for Hub class
 
         if not recipient:
             self.warning("invalid recipient, stalling")
@@ -217,11 +219,11 @@ class USBDevice(USBBaseActor):
         handler = handler_entity.request_handlers.get(req.request, None)
 
         if not handler:
-            self.error('request not handled', req)
-            self.debug('handler entity type: %s' % (type(handler_entity)))
-            self.debug('handler entity: %s' % (handler_entity))
-            self.debug('handler_entity.request_handlers: %s' % (handler_entity.request_handlers))
-            self.warning('invalid handler, stalling')
+            self.error('request not handled: %s' % req)
+            self.error('handler entity type: %s' % (type(handler_entity)))
+            self.error('handler entity: %s' % (handler_entity))
+            self.error('handler_entity.request_handlers: %s' % (handler_entity.request_handlers))
+            self.error('invalid handler, stalling')
             self.app.stall_ep0()
         try:
             handler(req)
@@ -325,9 +327,10 @@ class USBDevice(USBBaseActor):
         self.debug('get_string_descriptor: %#x (%#x)' % (num, len(self.strings)))
         s = None
         if num <= len(self.strings):
-            s = self.strings[num-1].encode('utf-16')
+            s = self.strings[num - 1].encode('utf-16')
         else:
-            s = self.configuration.get_string_by_id(num)
+            if self.configuration:
+                s = self.configuration.get_string_by_id(num)
         if not s:
             s = self.strings[0].encode('utf-16')
         # Linux doesn't like the leading 2-byte Byte Order Mark (BOM);
@@ -380,7 +383,7 @@ class USBDevice(USBBaseActor):
     def handle_get_configuration_request(self, req):
         if self.verbose > 0:
             self.debug("received GET_CONFIGURATION request")
-        self.app.send_on_endpoint(0, b'\x01') #HACK - once configuration supported
+        self.app.send_on_endpoint(0, b'\x01')  # HACK - once configuration supported
 
     # USB 2.0 specification, section 9.4.7 (p 285 of pdf)
     def handle_set_configuration_request(self, req):
@@ -436,9 +439,15 @@ class USBDeviceRequest:
         self.raw_bytes = raw_bytes
 
     def __str__(self):
-        s = "dir=%d, type=%d, rec=%d, r=%d, v=%d, i=%d, l=%d" \
-                % (self.get_direction(), self.get_type(), self.get_recipient(),
-                   self.request, self.value, self.index, self.length)
+        s = "dir=%d, type=%d, rec=%d, r=%d, v=%d, i=%d, l=%d" % (
+            self.get_direction(),
+            self.get_type(),
+            self.get_recipient(),
+            self.request,
+            self.value,
+            self.index,
+            self.length
+        )
         return s
 
     def raw(self):

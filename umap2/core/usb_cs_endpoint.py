@@ -19,7 +19,7 @@ class USBCSEndpoint(USBBaseActor):
         }
 
     def handle_clear_feature_request(self, req):
-        self.interface.configuration.device.app.send_on_endpoint(0, b'')
+        self.interface.app.send_on_endpoint(0, b'')
 
     def set_interface(self, interface):
         self.interface = interface

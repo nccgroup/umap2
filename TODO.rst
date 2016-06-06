@@ -1,1 +1,9 @@
-- Add setup.py
+- Cleanup all devices
+    - audio
+    - iphone
+    - mass_storage
+    - mtp
+    - printer
+    - smartcard
+- Add devices
+    - ??
