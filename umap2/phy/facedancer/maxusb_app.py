@@ -1,10 +1,7 @@
 # MAXUSBApp.py
 #
 # Contains class definition for MAXUSBApp.
-
-import os
 import struct
-import time
 from binascii import hexlify
 from umap2.phy.facedancer.facedancer import FacedancerApp, FacedancerCommand
 
@@ -185,71 +182,13 @@ class MAXUSBApp(FacedancerApp):
         self.verbose("stalling endpoint 0")
         self.write_register(self.reg_ep_stalls, 0x23)
 
-    def check_connection_commands(self):
-        '''
-        :return: whether performed reconnection
-        '''
-        dev = self.connected_device
-        if self.should_disconnect():
-            self.disconnect()
-            self.clear_disconnect_trigger()
-            # wait for reconnection request; no point in returning to service_irqs loop while not connected!
-            while not self.should_reconnect():
-                self.clear_disconnect_trigger()  # be robust to additional disconnect requests
-                time.sleep(0.1)
-            # now that we received a reconnect request, flow into the handling of it...
-        # be robust to reconnection requests, whether received after a disconnect request, or standalone
-        # (not sure this is right, might be better to *not* be robust in the face of possible misuse?)
-        if self.should_reconnect():
-            self.connect(dev)
-            self.clear_reconnect_trigger()
-            return True
-        return False
-
-    def should_reconnect(self):
-        if self.fuzzer:
-            if os.path.isfile('/tmp/umap_kitty/trigger_reconnect'):
-                return True
-        return False
-
-    def clear_reconnect_trigger(self):
-        trigger = '/tmp/umap_kitty/trigger_reconnect'
-        if os.path.isfile(trigger):
-            os.remove(trigger)
-
-    def should_disconnect(self):
-        if self.fuzzer:
-            if os.path.isfile('/tmp/umap_kitty/trigger_disconnect'):
-                return True
-        return False
-
-    def clear_disconnect_trigger(self):
-        trigger = '/tmp/umap_kitty/trigger_disconnect'
-        if os.path.isfile(trigger):
-            os.remove(trigger)
-
-    def send_heartbeat(self):
-        heartbeat_file = '/tmp/umap_kitty/heartbeat'
-        if os.path.isdir(os.path.dirname(heartbeat_file)):
-            with open(heartbeat_file, 'a'):
-                os.utime(heartbeat_file, None)
-
     def service_irqs(self):
-        count = 0
-        tmp_irq = 0
-
         while not self.stop:
             irq = self.read_register(self.reg_endpoint_irq)
 
-            if irq == tmp_irq:
-                count += 1
-            else:
-                self.send_heartbeat()
-                count = 0
-
             self.verbose("read endpoint irq: 0x%02x" % irq)
 
-            if irq & ~ (
+            if irq & ~(
                 self.is_in0_buffer_avail |
                 self.is_in2_buffer_avail |
                 self.is_in3_buffer_avail
@@ -281,7 +220,6 @@ class MAXUSBApp(FacedancerApp):
                 except:
                     self.error('umap ignored the exception for some reason... will need to address that later on')
                     raise
-            tmp_irq = irq
             if self.app.packet_processed():
                 break
 
