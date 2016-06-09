@@ -28,18 +28,18 @@ from umap2.apps.base import Umap2App
 class Umap2EmulationApp(Umap2App):
 
     def run(self):
-        fuzzer = self.get_fuzzer()
-        phy = self.load_phy(self.options['--phy'], fuzzer)
-        dev = self.load_device(self.options['--class'], phy)
+        self.fuzzer = self.get_fuzzer()
+        self.phy = self.load_phy(self.options['--phy'], self.fuzzer)
+        self.dev = self.load_device(self.options['--class'], self.phy)
         try:
-            dev.connect()
-            dev.run()
+            self.dev.connect()
+            self.dev.run()
         except KeyboardInterrupt:
             self.logger.info('user terminated the run')
         except:
             self.logger.error('Got exception while connecting/running device')
             self.logger.error(traceback.format_exc())
-        dev.disconnect()
+        self.dev.disconnect()
 
     def get_fuzzer(self):
         return None
