@@ -29,7 +29,7 @@ class Umap2MakeStagesApp(Umap2EmulationApp):
         stage_logger = StageLogger(self.stage_file_name)
         stage_logger.start()
         set_stage_logger(stage_logger)
-        super(Umap2MakeStagesApp, self).load_device(dev_name, phy)
+        return super(Umap2MakeStagesApp, self).load_device(dev_name, phy)
 
     def packet_processed(self):
         self.num_processed += 1
