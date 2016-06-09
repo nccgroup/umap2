@@ -25,6 +25,7 @@ from umap2.fuzz.helpers import StageLogger, set_stage_logger
 class Umap2MakeStagesApp(Umap2EmulationApp):
 
     def load_device(self, dev_name, phy):
+        self.start_time = time.time()
         self.stage_file_name = self.options['--stage-file']
         stage_logger = StageLogger(self.stage_file_name)
         stage_logger.start()
