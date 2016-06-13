@@ -9,7 +9,7 @@ import docopt
 from serial import Serial, PARITY_NONE
 
 from umap2.phy.facedancer.facedancer import Facedancer
-from umap2.phy.facedancer.maxusb_app import MAXUSBApp
+from umap2.phy.facedancer.max342x_phy import Max342xPhy
 
 
 class Umap2App(object):
@@ -59,7 +59,7 @@ class Umap2App(object):
             dev_name = phy_arr[1]
             s = Serial(dev_name, 115200, parity=PARITY_NONE, timeout=2)
             fd = Facedancer(s)
-            phy = MAXUSBApp(fd, self, fuzzer=fuzzer)
+            phy = Max342xPhy(fd, self, fuzzer=fuzzer)
             return phy
         raise Exception('phy type not supported: %s' % phy_type)
 

@@ -1,12 +1,12 @@
-# MAXUSBApp.py
+# Max342xPhy.py
 #
-# Contains class definition for MAXUSBApp.
+# Contains class definition for Max342xPhy.
 import struct
 from binascii import hexlify
 from umap2.phy.facedancer.facedancer import FacedancerApp, FacedancerCommand
 
 
-class MAXUSBApp(FacedancerApp):
+class Max342xPhy(FacedancerApp):
     app_name = "MAXUSB"
     app_num = 0x40
 
@@ -49,7 +49,7 @@ class MAXUSBApp(FacedancerApp):
     full_duplex = 0x10
 
     def __init__(self, device, app, fuzzer=None):
-        super(MAXUSBApp, self).__init__(device)
+        super(Max342xPhy, self).__init__(device)
 
         self.connected_device = None
         self.fuzzer = fuzzer

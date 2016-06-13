@@ -2,7 +2,7 @@
 Contains class definitions to implement a USB printer device.
 
 Still not working well, linux fails to set altsetting 0 on iface 0
-and then we get exception from MAXUSBApp
+and then we get exception from Max342xPhy
 '''
 import time
 import struct
