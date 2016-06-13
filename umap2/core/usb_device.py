@@ -10,16 +10,17 @@ from umap2.fuzz.helpers import mutable
 
 
 class USBDevice(USBBaseActor):
-    name = "USB Device"
+    name = 'Device'
 
     def __init__(
-            self, app, device_class, device_subclass,
+            self, app, phy, device_class, device_subclass,
             protocol_rel_num, max_packet_size_ep0, vendor_id, product_id,
             device_rev, manufacturer_string, product_string,
             serial_number_string, configurations=None, descriptors=None,
             device_vendor=None):
         '''
-        :param app: phy application (to communicate with actual device)
+        :param app: umap2 application
+        :param phy: physical connection
         :param device_class: device class
         :param device_subclass: device subclass
         :param protocol_rel_num: protocol release number
@@ -34,7 +35,7 @@ class USBDevice(USBBaseActor):
         :param descriptors: dict of handler for descriptor requests (default: None)
         :param device_vendor: USB device vendor (default: None)
         '''
-        super(USBDevice, self).__init__(app)
+        super(USBDevice, self).__init__(app, phy)
         if configurations is None:
             configurations = []
         if descriptors is None:
@@ -111,20 +112,20 @@ class USBDevice(USBBaseActor):
         }
 
     def connect(self):
-        self.app.connect(self)
+        self.phy.connect(self)
         # skipping USB.state_attached may not be strictly correct (9.1.1.{1,2})
         self.state = State.powered
 
     def disconnect(self):
-        if self.app.is_connected():
-            self.app.disconnect()
+        if self.phy.is_connected():
+            self.phy.disconnect()
         self.state = State.detached
 
     def run(self):
-        self.app.service_irqs()
+        self.phy.service_irqs()
 
     def ack_status_stage(self):
-        self.app.ack_status_stage()
+        self.phy.ack_status_stage()
 
     @mutable('device_descriptor')
     def get_descriptor(self, n):
@@ -195,7 +196,7 @@ class USBDevice(USBBaseActor):
 
         if not recipient:
             self.warning("invalid recipient, stalling")
-            self.app.stall_ep0()
+            self.phy.stall_ep0()
             return
 
         # and then the type
@@ -210,7 +211,7 @@ class USBDevice(USBBaseActor):
 
         if not handler_entity:
             self.warning("invalid handler entity, stalling")
-            self.app.stall_ep0()
+            self.phy.stall_ep0()
             return
 
         if handler_entity == 9:  # HACK: for hub class
@@ -224,7 +225,7 @@ class USBDevice(USBBaseActor):
             self.error('handler entity: %s' % (handler_entity))
             self.error('handler_entity.request_handlers: %s' % (handler_entity.request_handlers))
             self.error('invalid handler, stalling')
-            self.app.stall_ep0()
+            self.phy.stall_ep0()
         try:
             handler(req)
         except:
@@ -255,20 +256,20 @@ class USBDevice(USBBaseActor):
     def handle_get_status_request(self, req):
         self.verbose("received GET_STATUS request")
         # self-powered and remote-wakeup (USB 2.0 Spec section 9.4.5)
-#        response = b'\x03\x00'
+        # response = b'\x03\x00'
         response = b'\x01\x00'
-        self.app.send_on_endpoint(0, response)
+        self.phy.send_on_endpoint(0, response)
 
     # USB 2.0 specification, section 9.4.1 (p 280 of pdf)
     def handle_clear_feature_request(self, req):
         self.verbose("received CLEAR_FEATURE request with type 0x%02x and value 0x%02x" % (req.request_type, req.value))
-        # self.app.send_on_endpoint(0, b'')
+        # self.phy.send_on_endpoint(0, b'')
 
     # USB 2.0 specification, section 9.4.9 (p 286 of pdf)
     def handle_set_feature_request(self, req):
         self.verbose("received SET_FEATURE request")
         response = b''
-        self.app.send_on_endpoint(0, response)
+        self.phy.send_on_endpoint(0, response)
 
     # USB 2.0 specification, section 9.4.6 (p 284 of pdf)
     def handle_set_address_request(self, req):
@@ -296,10 +297,10 @@ class USBDevice(USBBaseActor):
 
         if response:
             n = min(n, len(response))
-            self.app.send_on_endpoint(0, response[:n])
+            self.phy.send_on_endpoint(0, response[:n])
             self.verbose("sent %d bytes in response" % n)
         else:
-            self.app.stall_ep0()
+            self.phy.stall_ep0()
 
     #
     # No need to mutate this one will mutate
@@ -383,7 +384,7 @@ class USBDevice(USBBaseActor):
     def handle_get_configuration_request(self, req):
         if self.verbose > 0:
             self.debug("received GET_CONFIGURATION request")
-        self.app.send_on_endpoint(0, b'\x01')  # HACK - once configuration supported
+        self.phy.send_on_endpoint(0, b'\x01')  # HACK - once configuration supported
 
     # USB 2.0 specification, section 9.4.7 (p 285 of pdf)
     def handle_set_configuration_request(self, req):
@@ -410,14 +411,14 @@ class USBDevice(USBBaseActor):
         self.debug("received GET_INTERFACE request")
         if req.index == 0:
             # HACK: currently only support one interface
-            self.app.send_on_endpoint(0, b'\x00')
+            self.phy.send_on_endpoint(0, b'\x00')
         else:
-            self.app.stall_ep0()
+            self.phy.stall_ep0()
 
     # USB 2.0 specification, section 9.4.10 (p 288 of pdf)
     def handle_set_interface_request(self, req):
         self.debug("received SET_INTERFACE request")
-        self.app.send_on_endpoint(0, b'')
+        self.phy.send_on_endpoint(0, b'')
 
     # USB 2.0 specification, section 9.4.11 (p 288 of pdf)
     def handle_synch_frame_request(self, req):

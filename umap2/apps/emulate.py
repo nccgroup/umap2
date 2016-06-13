@@ -29,7 +29,7 @@ class Umap2EmulationApp(Umap2App):
 
     def run(self):
         self.fuzzer = self.get_fuzzer()
-        self.phy = self.load_phy(self.options['--phy'], self.fuzzer)
+        self.phy = self.load_phy(self.options['--phy'])
         self.dev = self.load_device(self.options['--class'], self.phy)
         try:
             self.dev.connect()

@@ -50,7 +50,7 @@ class Umap2App(object):
             logger.setLevel(logging.WARNING)
         return logger
 
-    def load_phy(self, phy_string, fuzzer):
+    def load_phy(self, phy_string):
         self.logger.info('loading physical interface: %s' % phy_string)
         phy_arr = phy_string.split(':')
         phy_type = phy_arr[0]
@@ -59,7 +59,7 @@ class Umap2App(object):
             dev_name = phy_arr[1]
             s = Serial(dev_name, 115200, parity=PARITY_NONE, timeout=2)
             fd = Facedancer(s)
-            phy = Max342xPhy(fd, self, fuzzer=fuzzer)
+            phy = Max342xPhy(fd, self)
             return phy
         raise Exception('phy type not supported: %s' % phy_type)
 
@@ -77,7 +77,7 @@ class Umap2App(object):
             sys.path.insert(0, dirpath)
             module = __import__(modulename, globals(), locals(), [], -1)
         usb_device = module.usb_device
-        dev = usb_device(phy)
+        dev = usb_device(self, phy)
         return dev
 
     def packet_processed(self):

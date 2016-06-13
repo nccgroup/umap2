@@ -48,11 +48,10 @@ class Max342xPhy(FacedancerApp):
     interrupt_level = 0x08
     full_duplex = 0x10
 
-    def __init__(self, device, app, fuzzer=None):
+    def __init__(self, device, app):
         super(Max342xPhy, self).__init__(device)
 
         self.connected_device = None
-        self.fuzzer = fuzzer
         self.reply_buffer = ""
         self.stop = False
         self.retries = False

@@ -16,7 +16,7 @@ from umap2.fuzz.helpers import mutable
 
 
 class USBPrinterClass(USBClass):
-    name = "USB printer class"
+    name = 'PrinterClass'
 
     def setup_local_handlers(self):
         self.local_handlers = {
@@ -42,18 +42,17 @@ class USBPrinterClass(USBClass):
 
 
 class USBPrinterInterface(USBInterface):
-    name = "USB printer interface"
+    name = 'PrinterInterface'
 
-    def __init__(self, int_num, app, usbclass, sub, proto):
-        self.filename = time.strftime("%Y%m%d%H%M%S", time.localtime())
-        self.filename += ".pcl"
+    def __init__(self, app, phy, int_num, usbclass, sub, proto):
+        self.filename = time.strftime('%Y%m%d%H%M%S', time.localtime())
+        self.filename += '.pcl'
         self.writing = False
-
-        descriptors = {}
 
         endpoints0 = [
             USBEndpoint(
                 app=app,
+                phy=phy,
                 number=1,          # endpoint address
                 direction=USBEndpoint.direction_out,
                 transfer_type=USBEndpoint.transfer_type_bulk,
@@ -65,6 +64,7 @@ class USBPrinterInterface(USBInterface):
             ),
             USBEndpoint(
                 app=app,
+                phy=phy,
                 number=2,          # endpoint address
                 direction=USBEndpoint.direction_in,
                 transfer_type=USBEndpoint.transfer_type_bulk,
@@ -79,6 +79,7 @@ class USBPrinterInterface(USBInterface):
         endpoints1 = [
             USBEndpoint(
                 app=app,
+                phy=phy,
                 number=1,          # endpoint address
                 direction=USBEndpoint.direction_out,
                 transfer_type=USBEndpoint.transfer_type_bulk,
@@ -90,6 +91,7 @@ class USBPrinterInterface(USBInterface):
             ),
             USBEndpoint(
                 app=app,
+                phy=phy,
                 number=2,          # endpoint address
                 direction=USBEndpoint.direction_in,
                 transfer_type=USBEndpoint.transfer_type_bulk,
@@ -105,9 +107,10 @@ class USBPrinterInterface(USBInterface):
         if int_num == 1:
             endpoints = endpoints1
 
-        # TODO: un-hardcode string index (last arg before "verbose")
+        # TODO: un-hardcode string index (last arg before 'verbose')
         super(USBPrinterInterface, self).__init__(
             app=app,
+            phy=phy,
             interface_number=int_num,          # interface number
             interface_alternate=0,          # alternate setting
             interface_class=usbclass,     # interface class
@@ -115,38 +118,36 @@ class USBPrinterInterface(USBInterface):
             interface_protocol=proto,       # protocol
             interface_string_index=0,          # string index
             endpoints=endpoints,
-            descriptors=descriptors
+            device_class=USBPrinterClass(app, phy),
         )
-
-        self.device_class = USBPrinterClass(app)
-        self.device_class.set_interface(self)
 
     @mutable('handle_data_available')
     def handle_data_available(self, data):
         if not self.writing:
-            self.info("Writing PCL file: %s" % self.filename)
+            self.info('Writing PCL file: %s' % self.filename)
 
-        with open(self.filename, "ab") as out_file:
+        with open(self.filename, 'ab') as out_file:
             self.writing = True
             out_file.write(data)
 
         text_buffer = ''.join(chr(c) for c in data)
 
         if 'EOJ\n' in text_buffer:
-            self.info("File write complete")
+            self.info('File write complete')
             out_file.close()
             self.writing = False
 
 
 class USBPrinterDevice(USBDevice):
-    name = "USB printer device"
+    name = 'PrinterDevice'
 
     def __init__(
-        self, app, vid=0x03f0, pid=0x4417, rev=0x0001,
+        self, app, phy, vid=0x03f0, pid=0x4417, rev=0x0001,
         usbclass=USBClass.Printer, subclass=1, proto=2
     ):
         super(USBPrinterDevice, self).__init__(
             app=app,
+            phy=phy,
             device_class=USBClass.Unspecified,
             device_subclass=0,
             protocol_rel_num=0,
@@ -154,17 +155,18 @@ class USBPrinterDevice(USBDevice):
             vendor_id=vid,
             product_id=pid,
             device_rev=rev,
-            manufacturer_string="Hewlett-Packard",
-            product_string="HP Color LaserJet CP1515n",
-            serial_number_string="00CNC2618971",
+            manufacturer_string='Hewlett-Packard',
+            product_string='HP Color LaserJet CP1515n',
+            serial_number_string='00CNC2618971',
             configurations=[
                 USBConfiguration(
                     app=app,
+                    phy=phy,
                     index=1,
-                    string="Printer",
+                    string='Printer',
                     interfaces=[
-                        USBPrinterInterface(0, app, usbclass, subclass, proto),
-                        # USBPrinterInterface(1, app, 0xff, 1, 1),
+                        USBPrinterInterface(app, phy, 0, usbclass, subclass, proto),
+                        # USBPrinterInterface(app, phy, 1, 0xff, 1, 1),
                     ]
                 )
             ],

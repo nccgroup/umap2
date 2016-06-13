@@ -7,7 +7,7 @@ from umap2.fuzz.helpers import mutable
 
 
 class USBEndpoint(USBBaseActor):
-    name = 'USB Endpoint'
+    name = 'Endpoint'
     direction_out = 0x00
     direction_in = 0x01
 
@@ -26,10 +26,11 @@ class USBEndpoint(USBBaseActor):
     usage_type_implicit_feedback = 0x02
 
     def __init__(
-            self, app, number, direction, transfer_type, sync_type,
+            self, app, phy, number, direction, transfer_type, sync_type,
             usage_type, max_packet_size, interval, handler):
         '''
-        :param app: application
+        :param app: umap2 application
+        :param phy: physical connection
         :param number: endpoint number
         :param direction: endpoint direction (direction_in/direction_out)
         :param transfer_type: one of USBEndpoint.transfer_type\*
@@ -44,7 +45,7 @@ class USBEndpoint(USBBaseActor):
 
         .. note:: OUT endpoint is 1, IN endpoint is either 2 or 3
         '''
-        super(USBEndpoint, self).__init__(app)
+        super(USBEndpoint, self).__init__(app, phy)
         self.number = number
         self.direction = direction
         self.transfer_type = transfer_type
@@ -61,11 +62,11 @@ class USBEndpoint(USBBaseActor):
         }
 
     def handle_clear_feature_request(self, req):
-        self.interface.app.send_on_endpoint(0, b'')
+        self.interface.phy.send_on_endpoint(0, b'')
 
     def handle_get_status(self, req):
         self.info('in GET_STATUS of endpoint %d' % self.number)
-        self.interface.app.send_on_endpoint(0, b'\x00\x00')
+        self.interface.phy.send_on_endpoint(0, b'\x00\x00')
 
     def set_interface(self, interface):
         self.interface = interface

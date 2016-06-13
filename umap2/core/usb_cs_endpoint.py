@@ -8,8 +8,15 @@ from umap2.fuzz.helpers import mutable
 
 class USBCSEndpoint(USBBaseActor):
 
-    def __init__(self, app, cs_config):
-        super(USBCSEndpoint, self).__init__(app)
+    name = 'CSEndpoint'
+
+    def __init__(self, app, phy, cs_config):
+        '''
+        :param app: Umap2 application
+        :param phy: Physical connection
+        :param cs_config: containing class specific config
+        '''
+        super(USBCSEndpoint, self).__init__(app, phy)
         self.cs_config = cs_config
         self.number = self.cs_config[1]
         self.interface = None
@@ -19,7 +26,7 @@ class USBCSEndpoint(USBBaseActor):
         }
 
     def handle_clear_feature_request(self, req):
-        self.interface.app.send_on_endpoint(0, b'')
+        self.interface.phy.send_on_endpoint(0, b'')
 
     def set_interface(self, interface):
         self.interface = interface

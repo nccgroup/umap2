@@ -22,7 +22,7 @@ class Requests(object):
 
 
 class USBKeyboardClass(USBClass):
-    name = "USB Keyboard class"
+    name = 'KeyboardClass'
 
     def setup_local_handlers(self):
         self.local_handlers = {
@@ -51,12 +51,12 @@ class USBKeyboardClass(USBClass):
 
 
 class USBKeyboardInterface(USBInterface):
-    name = "USB keyboard interface"
+    name = 'KeyboardInterface'
 
-    def __init__(self, app):
-        # TODO: un-hardcode string index (last arg before "verbose")
+    def __init__(self, app, phy):
         super(USBKeyboardInterface, self).__init__(
             app=app,
+            phy=phy,
             interface_number=0,
             interface_alternate=0,
             interface_class=USBClass.HID,
@@ -66,6 +66,7 @@ class USBKeyboardInterface(USBInterface):
             endpoints=[
                 USBEndpoint(
                     app=app,
+                    phy=phy,
                     number=2,
                     direction=USBEndpoint.direction_in,
                     transfer_type=USBEndpoint.transfer_type_interrupt,
@@ -80,7 +81,7 @@ class USBKeyboardInterface(USBInterface):
                 DescriptorType.hid: self.get_hid_descriptor,
                 DescriptorType.report: self.get_report_descriptor
             },
-            device_class=USBKeyboardClass(app)
+            device_class=USBKeyboardClass(app, phy)
         )
 
         empty_preamble = [0x00] * 10
@@ -181,16 +182,17 @@ class USBKeyboardInterface(USBInterface):
 
     def type_letter(self, letter, modifiers=0):
         data = struct.pack('<BBB', 0, 0, ord(letter))
-        self.verbose(self.name, "sending keypress 0x%02x" % ord(letter))
-        self.app.send_on_endpoint(2, data)
+        self.verbose(self.name, 'sending keypress 0x%02x' % ord(letter))
+        self.send_on_endpoint(2, data)
 
 
 class USBKeyboardDevice(USBDevice):
-    name = "USB keyboard device"
+    name = 'KeyboardDevice'
 
-    def __init__(self, app, vid=0x610b, pid=0x4653, rev=0x1234, **kwargs):
+    def __init__(self, app, phy, vid=0x610b, pid=0x4653, rev=0x1234, **kwargs):
         super(USBKeyboardDevice, self).__init__(
             app=app,
+            phy=phy,
             device_class=USBClass.Unspecified,
             device_subclass=0,
             protocol_rel_num=0,
@@ -198,16 +200,17 @@ class USBKeyboardDevice(USBDevice):
             vendor_id=vid,
             product_id=pid,
             device_rev=rev,
-            manufacturer_string="Dell",
-            product_string="Dell USB Entry Keyboard",
-            serial_number_string="00001",
+            manufacturer_string='Dell',
+            product_string='Dell USB Entry Keyboard',
+            serial_number_string='00001',
             configurations=[
                 USBConfiguration(
                     app=app,
+                    phy=phy,
                     index=1,
-                    string="Emulated Keyboard",
+                    string='Emulated Keyboard',
                     interfaces=[
-                        USBKeyboardInterface(app)
+                        USBKeyboardInterface(app, phy)
                     ]
                 )
             ],

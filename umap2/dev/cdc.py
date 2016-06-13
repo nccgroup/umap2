@@ -13,7 +13,7 @@ from umap2.fuzz.helpers import mutable
 
 
 class USBCDCClass(USBClass):
-    name = "USB CDC class"
+    name = 'CDCClass'
 
     def setup_local_handlers(self):
         self.local_handlers = {
@@ -32,14 +32,15 @@ class USBCDCClass(USBClass):
 
 class USBCommunicationInterface(USBInterface):
 
-    name = "USB Communication Interface"
+    name = 'CommunicationInterface'
 
-    def __init__(self, app, int_num, data_iface_num):
+    def __init__(self, app, phy, int_num, data_iface_num):
         bmCapabilities = 0x03
         bControlInterface = int_num
         bDataInterface = data_iface_num
         super(USBCommunicationInterface, self).__init__(
             app=app,
+            phy=phy,
             interface_number=int_num,
             interface_alternate=0,
             interface_class=USBClass.CDC,
@@ -49,6 +50,7 @@ class USBCommunicationInterface(USBInterface):
             endpoints=[
                 USBEndpoint(
                     app=app,
+                    phy=phy,
                     number=0x3,
                     direction=USBEndpoint.direction_in,
                     transfer_type=USBEndpoint.transfer_type_interrupt,
@@ -61,13 +63,13 @@ class USBCommunicationInterface(USBInterface):
             ],
             cs_interfaces=[
                 # Header Functional Descriptor
-                USBCSInterface(app, [0x00, 0x1001], 2, 2, 1),
+                USBCSInterface(app, phy, [0x00, 0x1001], 2, 2, 1),
                 # Call Management Functional Descriptor
-                USBCSInterface(app, [0x01, bmCapabilities, bDataInterface], 2, 2, 1),
-                USBCSInterface(app, [0x02, bmCapabilities], 2, 2, 1),
-                USBCSInterface(app, [0x06, bControlInterface, bDataInterface], 2, 2, 1)
+                USBCSInterface(app, phy, [0x01, bmCapabilities, bDataInterface], 2, 2, 1),
+                USBCSInterface(app, phy, [0x02, bmCapabilities], 2, 2, 1),
+                USBCSInterface(app, phy, [0x06, bControlInterface, bDataInterface], 2, 2, 1)
             ],
-            device_class=USBCDCClass(app)
+            device_class=USBCDCClass(app, phy)
         )
 
     def handle_ep3_buffer_available(self):
@@ -75,12 +77,13 @@ class USBCommunicationInterface(USBInterface):
 
 
 class USBCDCDataInterface(USBInterface):
-    name = "USB CDC Data interface"
+    name = 'CDCDataInterface'
 
-    def __init__(self, app, int_num):
-        # TODO: un-hardcode string index (last arg before "verbose")
+    def __init__(self, app, phy, int_num):
+        # TODO: un-hardcode string index (last arg before 'verbose')
         super(USBCDCDataInterface, self).__init__(
             app=app,
+            phy=phy,
             interface_number=int_num,
             interface_alternate=0,
             interface_class=USBClass.CDCData,
@@ -90,6 +93,7 @@ class USBCDCDataInterface(USBInterface):
             endpoints=[
                 USBEndpoint(
                     app=app,
+                    phy=phy,
                     number=0x1,
                     direction=USBEndpoint.direction_out,
                     transfer_type=USBEndpoint.transfer_type_bulk,
@@ -101,6 +105,7 @@ class USBCDCDataInterface(USBInterface):
                 ),
                 USBEndpoint(
                     app=app,
+                    phy=phy,
                     number=0x2,
                     direction=USBEndpoint.direction_in,
                     transfer_type=USBEndpoint.transfer_type_bulk,
@@ -111,23 +116,24 @@ class USBCDCDataInterface(USBInterface):
                     handler=self.handle_ep2_buffer_available
                 )
             ],
-            device_class=USBCDCClass(app)
+            device_class=USBCDCClass(app, phy)
         )
 
     @mutable('cdc_handle_ep1_data_available')
     def handle_ep1_data_available(self, data):
-        self.logger.debug("handling %#x bytes of cdc data" % (len(data)))
+        self.logger.debug('handling %#x bytes of cdc data' % (len(data)))
 
     def handle_ep2_buffer_available(self):
         self.logger.debug('ep2 buffer available')
 
 
 class USBCDCDevice(USBDevice):
-    name = "USB CDC device"
+    name = 'CDCDevice'
 
-    def __init__(self, app, vid=0x2548, pid=0x1001, rev=0x0010, **kwargs):
+    def __init__(self, app, phy, vid=0x2548, pid=0x1001, rev=0x0010, **kwargs):
         super(USBCDCDevice, self).__init__(
             app=app,
+            phy=phy,
             device_class=USBClass.CDC,
             device_subclass=0,
             protocol_rel_num=0,
@@ -135,17 +141,18 @@ class USBCDCDevice(USBDevice):
             vendor_id=vid,
             product_id=pid,
             device_rev=rev,
-            manufacturer_string="Vendor",
-            product_string="Product",
-            serial_number_string="Serial",
+            manufacturer_string='Vendor',
+            product_string='Product',
+            serial_number_string='Serial',
             configurations=[
                 USBConfiguration(
                     app=app,
+                    phy=phy,
                     index=1,
-                    string="Emulated CDC",
+                    string='Emulated CDC',
                     interfaces=[
-                        USBCommunicationInterface(app, 0, 1),
-                        USBCDCDataInterface(app, 1)
+                        USBCommunicationInterface(app, phy, 0, 1),
+                        USBCDCDataInterface(app, phy, 1)
                     ]
                 )
             ],

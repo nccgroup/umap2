@@ -25,7 +25,7 @@ class ClassRequests(object):
 
 
 class USBSmartcardClass(USBClass):
-    name = "USB Smartcard class"
+    name = 'SmartcardClass'
 
     def setup_local_handlers(self):
         self.local_handlers = {
@@ -113,9 +113,9 @@ class RdrToPc(object):
 
 
 class USBSmartcardInterface(USBInterface):
-    name = "USB Smartcard interface"
+    name = 'SmartcardInterface'
 
-    def __init__(self, app):
+    def __init__(self, app, phy):
         descriptors = {
             DescriptorType.hid: self.get_icc_descriptor
         }
@@ -140,6 +140,7 @@ class USBSmartcardInterface(USBInterface):
             # CCID command pipe
             USBEndpoint(
                 app=app,
+                phy=phy,
                 number=1,
                 direction=USBEndpoint.direction_out,
                 transfer_type=USBEndpoint.transfer_type_bulk,
@@ -152,6 +153,7 @@ class USBSmartcardInterface(USBInterface):
             # CCID response pipe
             USBEndpoint(
                 app=app,
+                phy=phy,
                 number=2,
                 direction=USBEndpoint.direction_in,
                 transfer_type=USBEndpoint.transfer_type_bulk,
@@ -164,6 +166,7 @@ class USBSmartcardInterface(USBInterface):
             # CCID event notification pipe
             USBEndpoint(
                 app=app,
+                phy=phy,
                 number=3,
                 direction=USBEndpoint.direction_in,
                 transfer_type=USBEndpoint.transfer_type_interrupt,
@@ -175,9 +178,10 @@ class USBSmartcardInterface(USBInterface):
             ),
         ]
 
-        # TODO: un-hardcode string index (last arg before "verbose")
+        # TODO: un-hardcode string index (last arg before 'verbose')
         super(USBSmartcardInterface, self).__init__(
             app=app,
+            phy=phy,
             interface_number=0,
             interface_alternate=0,
             interface_class=USBClass.SmartCard,
@@ -186,7 +190,7 @@ class USBSmartcardInterface(USBInterface):
             interface_string_index=0,
             endpoints=endpoints,
             descriptors=descriptors,
-            device_class=USBSmartcardClass(app)
+            device_class=USBSmartcardClass(app, phy)
         )
 
         self.trigger = False
@@ -350,6 +354,7 @@ class USBSmartcardInterface(USBInterface):
     def handle_PcToRdr_Secure(self, slot, seq, data):
         '''
         .. todo:: to complete that, go over section 6.1.11
+                  ATM unpack will raise an exception
         '''
         bBWI, wLevelParameter = struct.unpack('<BH')
         return R2P_DataBlock(
@@ -461,23 +466,24 @@ class USBSmartcardInterface(USBInterface):
             self.session_data['data'] = data
             response = handler(slot, seq, data)
         else:
-            self.error("Received Smartcard command not understood")
+            self.error('Received Smartcard command not understood')
             response = b''
         if response:
-            self.app.send_on_endpoint(2, response)
+            self.send_on_endpoint(2, response)
 
     def handle_buffer_available(self):
         if not self.trigger:
-            self.app.send_on_endpoint(3, self.initial_data)
+            self.send_on_endpoint(3, self.initial_data)
             self.trigger = True
 
 
 class USBSmartcardDevice(USBDevice):
-    name = "USB Smartcard device"
+    name = 'SmartcardDevice'
 
-    def __init__(self, app, vid=0x0bda, pid=0x0165, rev=0x2361, **kwargs):
+    def __init__(self, app, phy, vid=0x0bda, pid=0x0165, rev=0x2361, **kwargs):
         super(USBSmartcardDevice, self).__init__(
             app=app,
+            phy=phy,
             device_class=USBClass.Unspecified,
             device_subclass=0,
             protocol_rel_num=0,
@@ -485,16 +491,17 @@ class USBSmartcardDevice(USBDevice):
             vendor_id=vid,
             product_id=pid,
             device_rev=rev,
-            manufacturer_string="Generic",
-            product_string="Smart Card Reader Interface",
-            serial_number_string="20070818000000000",
+            manufacturer_string='Generic',
+            product_string='Smart Card Reader Interface',
+            serial_number_string='20070818000000000',
             configurations=[
                 USBConfiguration(
                     app=app,
+                    phy=phy,
                     index=1,
-                    string="Emulated Smartcard",
+                    string='Emulated Smartcard',
                     interfaces=[
-                        USBSmartcardInterface(app)
+                        USBSmartcardInterface(app, phy)
                     ]
                 )
             ],

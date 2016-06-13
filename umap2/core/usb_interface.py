@@ -10,16 +10,17 @@ from umap2.fuzz.helpers import mutable
 
 
 class USBInterface(USBBaseActor):
-    name = "generic USB interface"
+    name = 'Interface'
 
     def __init__(
-        self, app, interface_number, interface_alternate, interface_class,
+        self, app, phy, interface_number, interface_alternate, interface_class,
         interface_subclass, interface_protocol, interface_string_index,
         endpoints=None, descriptors=None, cs_interfaces=None,
         device_class=None
     ):
         '''
-        :param app: application instance
+        :param app: umap2 application
+        :param phy: physical connection
         :param interface_number: interface number
         :param interface_alternate: alternate settings
         :param interface_class: interface class
@@ -31,7 +32,7 @@ class USBInterface(USBBaseActor):
         :param cs_interfaces: list of class specific interfaces (default: None)
         :param device_class: USB device class (default: None)
         '''
-        super(USBInterface, self).__init__(app)
+        super(USBInterface, self).__init__(app, phy)
         self.number = interface_number
         self.alternate = interface_alternate
         self.iclass = interface_class
@@ -79,13 +80,13 @@ class USBInterface(USBBaseActor):
 
         if response:
             n = min(n, len(response))
-            self.app.send_on_endpoint(0, response[:n])
+            self.phy.send_on_endpoint(0, response[:n])
             self.verbose('sent %d bytes in response' % (n))
 
     def handle_set_interface_request(self, req):
         self.debug("received SET_INTERFACE request")
-        self.app.stall_ep0()
-        # self.app.send_on_endpoint(0, b'')
+        self.phy.stall_ep0()
+        # self.phy.send_on_endpoint(0, b'')
 
     # Table 9-12 of USB 2.0 spec (pdf page 296)
     @mutable('interface_descriptor')

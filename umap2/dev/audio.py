@@ -14,7 +14,7 @@ from umap2.fuzz.helpers import mutable
 
 
 class USBAudioClass(USBClass):
-    name = "USB Audio class"
+    name = 'AudioClass'
 
     def setup_local_handlers(self):
         self.local_handlers = {
@@ -57,9 +57,9 @@ class USBAudioClass(USBClass):
 
 
 class USBAudioInterface(USBInterface):
-    name = "USB audio interface"
+    name = 'AudioInterface'
 
-    def __init__(self, int_num, app, usbclass, sub, proto):
+    def __init__(self, app, phy, int_num, usbclass, sub, proto):
         descriptors = {
             DescriptorType.hid: self.get_hid_descriptor,
             DescriptorType.report: self.get_report_descriptor
@@ -157,13 +157,13 @@ class USBAudioInterface(USBInterface):
         ]
 
         cs_interfaces0 = [
-            USBCSInterface(app, cs_config1, 1, 1, 0),
-            USBCSInterface(app, cs_config2, 1, 1, 0),
-            USBCSInterface(app, cs_config3, 1, 1, 0),
-            USBCSInterface(app, cs_config4, 1, 1, 0),
-            USBCSInterface(app, cs_config5, 1, 1, 0),
-            USBCSInterface(app, cs_config6, 1, 1, 0),
-            USBCSInterface(app, cs_config7, 1, 1, 0)
+            USBCSInterface(app, phy, cs_config1, 1, 1, 0),
+            USBCSInterface(app, phy, cs_config2, 1, 1, 0),
+            USBCSInterface(app, phy, cs_config3, 1, 1, 0),
+            USBCSInterface(app, phy, cs_config4, 1, 1, 0),
+            USBCSInterface(app, phy, cs_config5, 1, 1, 0),
+            USBCSInterface(app, phy, cs_config6, 1, 1, 0),
+            USBCSInterface(app, phy, cs_config7, 1, 1, 0)
         ]
 
         # cs_config8 = [
@@ -199,6 +199,7 @@ class USBAudioInterface(USBInterface):
         endpoints0 = [
             USBEndpoint(
                 app=app,
+                phy=phy,
                 number=2,
                 direction=USBEndpoint.direction_in,
                 transfer_type=USBEndpoint.transfer_type_interrupt,
@@ -230,6 +231,7 @@ class USBAudioInterface(USBInterface):
         # TODO: un-hardcode string index
         super(USBAudioInterface, self).__init__(
             app=app,
+            phy=phy,
             interface_number=int_num,
             interface_alternate=0,
             interface_class=usbclass,
@@ -239,11 +241,11 @@ class USBAudioInterface(USBInterface):
             endpoints=endpoints,
             descriptors=descriptors,
             cs_interfaces=cs_interfaces,
-            device_class=USBAudioClass(app)
+            device_class=USBAudioClass(app, phy)
         )
 
     def audio_ep2_buffer_available(self):
-        return self.app.send_on_endpoint(2, b'\x00\x00\x00')
+        return self.send_on_endpoint(2, b'\x00\x00\x00')
 
     @mutable('audio_hid_descriptor')
     def get_hid_descriptor(self, *args, **kwargs):
@@ -262,11 +264,12 @@ class USBAudioInterface(USBInterface):
 
 
 class USBAudioDevice(USBDevice):
-    name = "USB audio device"
+    name = 'AudioDevice'
 
-    def __init__(self, app, vid=0x041e, pid=0x0402, rev=0x0001, **kwargs):
+    def __init__(self, app, phy, vid=0x041e, pid=0x0402, rev=0x0001, **kwargs):
         super(USBAudioDevice, self).__init__(
             app=app,
+            phy=phy,
             device_class=USBClass.Unspecified,
             device_subclass=0,
             protocol_rel_num=0,
@@ -274,19 +277,20 @@ class USBAudioDevice(USBDevice):
             vendor_id=vid,
             product_id=pid,
             device_rev=rev,
-            manufacturer_string="Creative Technology Ltd.",
-            product_string="Creative HS-720 Headset",
-            serial_number_string="",
+            manufacturer_string='Creative Technology Ltd.',
+            product_string='Creative HS-720 Headset',
+            serial_number_string='',
             configurations=[
                 USBConfiguration(
                     app=app,
+                    phy=phy,
                     index=1,
-                    string="Emulated Audio",
+                    string='Emulated Audio',
                     interfaces=[
-                        USBAudioInterface(0, app, USBClass.Audio, 0x01, 0x00),
-                        USBAudioInterface(1, app, USBClass.Audio, 0x02, 0x00),
-                        USBAudioInterface(2, app, USBClass.Audio, 0x02, 0x00),
-                        USBAudioInterface(3, app, USBClass.HID, 0x00, 0x00),
+                        USBAudioInterface(app, phy, 0, USBClass.Audio, 0x01, 0x00),
+                        USBAudioInterface(app, phy, 1, USBClass.Audio, 0x02, 0x00),
+                        USBAudioInterface(app, phy, 2, USBClass.Audio, 0x02, 0x00),
+                        USBAudioInterface(app, phy, 3, USBClass.HID, 0x00, 0x00),
                     ]
                 )
             ],

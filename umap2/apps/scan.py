@@ -36,7 +36,7 @@ class Umap2ScanApp(Umap2App):
 
     def run(self):
         self.logger.always('Scanning host for supported devices')
-        phy = self.load_phy(self.options['--phy'], None)
+        phy = self.load_phy(self.options['--phy'])
         supported = []
         for device_name in self.umap_classes:
             if device_name == 'printer':

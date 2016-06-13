@@ -12,7 +12,7 @@ from umap2.fuzz.helpers import mutable
 
 
 class USBHubClass(USBClass):
-    name = "USB hub class"
+    name = 'HubClass'
 
     def setup_local_handlers(self):
         self.local_handlers = {
@@ -35,12 +35,13 @@ class USBHubClass(USBClass):
 
 
 class USBHubInterface(USBInterface):
-    name = "USB hub interface"
+    name = 'HubInterface'
 
-    def __init__(self, app, num=0):
+    def __init__(self, app, phy, num=0):
         # TODO: un-hardcode string index
         super(USBHubInterface, self).__init__(
             app=app,
+            phy=phy,
             interface_number=num,
             interface_alternate=0,
             interface_class=USBClass.Hub,
@@ -50,6 +51,7 @@ class USBHubInterface(USBInterface):
             endpoints=[
                 USBEndpoint(
                     app=app,
+                    phy=phy,
                     number=0x2,
                     direction=USBEndpoint.direction_in,
                     transfer_type=USBEndpoint.transfer_type_interrupt,
@@ -63,7 +65,7 @@ class USBHubInterface(USBInterface):
             descriptors={
                 DescriptorType.hub: self.get_hub_descriptor
             },
-            device_class=USBHubClass(app)
+            device_class=USBHubClass(app, phy)
         )
 
     @mutable('hub_descriptor')
@@ -94,11 +96,12 @@ class USBHubInterface(USBInterface):
 
 
 class USBHubDevice(USBDevice):
-    name = "USB hub device"
+    name = 'HubDevice'
 
-    def __init__(self, app, vid=0x05e3, pid=0x0610, rev=0x7732, **kwargs):
+    def __init__(self, app, phy, vid=0x05e3, pid=0x0610, rev=0x7732, **kwargs):
         super(USBHubDevice, self).__init__(
             app=app,
+            phy=phy,
             device_class=USBClass.Hub,
             device_subclass=0,
             protocol_rel_num=1,
@@ -106,16 +109,17 @@ class USBHubDevice(USBDevice):
             vendor_id=vid,
             product_id=pid,
             device_rev=rev,
-            manufacturer_string="Genesys Logic, Inc",
-            product_string="USB2.0 Hub",
-            serial_number_string="1234",
+            manufacturer_string='Genesys Logic, Inc',
+            product_string='USB2.0 Hub',
+            serial_number_string='1234',
             configurations=[
                 USBConfiguration(
                     app=app,
+                    phy=phy,
                     index=1,
-                    string="Emulated Hub",
+                    string='Emulated Hub',
                     interfaces=[
-                        USBHubInterface(app)
+                        USBHubInterface(app, phy)
                     ],
                     attributes=USBConfiguration.ATTR_REMOTE_WAKEUP | USBConfiguration.ATTR_SELF_POWERED,
                 )

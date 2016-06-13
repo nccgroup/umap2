@@ -23,14 +23,15 @@ except:
 
 
 class USBMtpInterface(USBInterface):
-    name = "USB MTP interface"
+    name = 'MtpInterface'
 
-    def __init__(self, app):
+    def __init__(self, app, phy):
         if not mtpdeviceloaded:
             raise Exception('You cannot use USBMtp until you install pymtpdevice')
-        # TODO: un-hardcode string index (last arg before "verbose")
+        # TODO: un-hardcode string index (last arg before 'verbose')
         super(USBMtpInterface, self).__init__(
             app=app,
+            phy=phy,
             interface_number=0,
             interface_alternate=0,
             interface_class=USBClass.VendorSpecific,
@@ -40,6 +41,7 @@ class USBMtpInterface(USBInterface):
             endpoints=[
                 USBEndpoint(
                     app=app,
+                    phy=phy,
                     number=1,
                     direction=USBEndpoint.direction_out,
                     transfer_type=USBEndpoint.transfer_type_bulk,
@@ -51,6 +53,7 @@ class USBMtpInterface(USBInterface):
                 ),
                 USBEndpoint(
                     app=app,
+                    phy=phy,
                     number=2,
                     direction=USBEndpoint.direction_in,
                     transfer_type=USBEndpoint.transfer_type_bulk,
@@ -62,6 +65,7 @@ class USBMtpInterface(USBInterface):
                 ),
                 USBEndpoint(
                     app=app,
+                    phy=phy,
                     number=3,
                     direction=USBEndpoint.direction_in,
                     transfer_type=USBEndpoint.transfer_type_interrupt,
@@ -117,7 +121,7 @@ class USBMtpInterface(USBInterface):
         resps = self.api.handle_payload(data)
         if resps:
             for resp in resps:
-                self.app.send_on_endpoint(2, resp)
+                self.send_on_endpoint(2, resp)
             self.usb_function_supported()
 
 
@@ -155,11 +159,12 @@ class USBMsosVendor(USBVendor):
 
 
 class USBMtpDevice(USBDevice):
-    name = "USB MTP device"
+    name = 'MtpDevice'
 
-    def __init__(self, app, vid=0x4e8, pid=0x685c, rev=0x0002, **kwargs):
+    def __init__(self, app, phy, vid=0x4e8, pid=0x685c, rev=0x0002, **kwargs):
         super(USBMtpDevice, self).__init__(
             app=app,
+            phy=phy,
             device_class=USBClass.Unspecified,
             device_subclass=0,
             protocol_rel_num=0,
@@ -167,20 +172,21 @@ class USBMtpDevice(USBDevice):
             vendor_id=vid,
             product_id=pid,
             device_rev=rev,
-            manufacturer_string="Samsung Electronics Co., Ltd",
-            product_string="GT-I9250 Phone [Galaxy Nexus](Mass storage mode)",
-            serial_number_string="00001",
+            manufacturer_string='Samsung Electronics Co., Ltd',
+            product_string='GT-I9250 Phone [Galaxy Nexus](Mass storage mode)',
+            serial_number_string='00001',
             configurations=[
                 USBConfiguration(
                     app=app,
+                    phy=phy,
                     index=1,
-                    string="Android MTP Device",
+                    string='Android MTP Device',
                     interfaces=[
-                        USBMtpInterface(app)
+                        USBMtpInterface(app, phy)
                     ]
                 )
             ],
-            device_vendor=USBMsosVendor(app=app),
+            device_vendor=USBMsosVendor(app=app, phy=phy),
         )
 
 

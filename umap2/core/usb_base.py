@@ -3,16 +3,20 @@ Common functionality for all USB actors (interface, class, etc.)
 '''
 import time
 import logging
-import traceback
 
 start_time = time.time()
 
 
 class USBBaseActor(object):
 
-    name = 'ACTOR'
+    name = 'Actor'
 
-    def __init__(self, app):
+    def __init__(self, app, phy):
+        '''
+        :param app: Umap2 application
+        :param phy: Physical connection
+        '''
+        self.phy = phy
         self.app = app
         self.session_data = {}
         self.str_dict = {}
@@ -25,6 +29,15 @@ class USBBaseActor(object):
         :return: mutation for current stage, None if not current fuzzing stage
         '''
         return self.app.get_mutation(stage, data)
+
+    def send_on_endpoint(self, ep, data):
+        '''
+        Send data on a given endpoint
+
+        :param ep: endpoint number
+        :param data: data to send
+        '''
+        self.phy.send_on_endpoint(ep, data)
 
     def get_session_data(self, stage):
         '''

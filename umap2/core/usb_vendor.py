@@ -6,13 +6,18 @@ from umap2.core.usb_base import USBBaseActor
 
 
 class USBVendor(USBBaseActor):
-    name = "generic USB device vendor"
+    name = 'DeviceVendor'
 
     # maps bRequest to handler function
     request_handlers = {}
 
-    def __init__(self, app, device=None):
-        super(USBVendor, self).__init__(app)
+    def __init__(self, app, phy, device=None):
+        '''
+        :param app: umap2 application
+        :param phy: physical connection
+        :param device: the usb device
+        '''
+        super(USBVendor, self).__init__(app, phy)
         self.device = device
         self.setup_request_handlers()
 
@@ -32,5 +37,5 @@ class USBVendor(USBBaseActor):
         handler = self.local_handlers[req.request]
         response = handler(req)
         if response is not None:
-            self.app.send_on_endpoint(0, response)
+            self.phy.send_on_endpoint(0, response)
         self.usb_function_supported()

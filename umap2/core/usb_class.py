@@ -7,7 +7,7 @@ from umap2.core.usb_base import USBBaseActor
 
 
 class USBClass(USBBaseActor):
-    name = "generic USB device class"
+    name = 'Class'
 
     Unspecified = 0x00
     Audio = 0x01
@@ -31,11 +31,12 @@ class USBClass(USBBaseActor):
     ApplicationSpecific = 0xfe
     VendorSpecific = 0xff
 
-    # maps bRequest to handler function
-    request_handlers = {}
-
-    def __init__(self, app):
-        super(USBClass, self).__init__(app)
+    def __init__(self, app, phy):
+        '''
+        :param app: Umap2 application
+        :param phy: Physical connection
+        '''
+        super(USBClass, self).__init__(app, phy)
         self.interface = None
         self.setup_request_handlers()
 
@@ -45,15 +46,15 @@ class USBClass(USBBaseActor):
     def setup_request_handlers(self):
         self.setup_local_handlers()
         self.request_handlers = {
-            x: self.handle_all for x in self.local_handlers
+            x: self._global_handler for x in self.local_handlers
         }
 
     def setup_local_handlers(self):
         self.local_handlers = {}
 
-    def handle_all(self, req):
+    def _global_handler(self, req):
         handler = self.local_handlers[req.request]
         response = handler(req)
         if response is not None:
-            self.app.send_on_endpoint(0, response)
-        self.usb_function_supported()
+            self.phy.send_on_endpoint(0, response)
+        self.app.usb_function_supported()

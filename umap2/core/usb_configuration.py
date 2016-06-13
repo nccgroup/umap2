@@ -5,12 +5,13 @@ In most cases it should not be subclassed.
 '''
 import struct
 from umap2.core.usb_base import USBBaseActor
+from umap2.core.usb import DescriptorType
 from umap2.fuzz.helpers import mutable
 
 
 class USBConfiguration(USBBaseActor):
 
-    name = 'USB Configuration'
+    name = 'Configuration'
 
     # Those attributes can be ORed
     # At least one should be selected
@@ -19,20 +20,21 @@ class USBConfiguration(USBBaseActor):
     ATTR_REMOTE_WAKEUP = ATTR_BASE | 0x20
 
     def __init__(
-        self, app,
+        self, app, phy,
         index, string, interfaces,
         attributes=ATTR_REMOTE_WAKEUP | ATTR_SELF_POWERED,
         max_power=0x32,
     ):
         '''
-        :param app: application instance
+        :param app: Umap2 application
+        :param phy: Physical connection
         :param index: configuration index (starts from 1)
         :param string: configuration string
         :param interfaces: list of interfaces for this configuration
         :param attributes: configuratioin attributes. one or more of USBConfiguration.ATTR_* (default: ATTR_REMOTE_WAKEUP | ATTR_SELF_POWERED)
         :param max_power: maximum power consumption of this configuration (default: 0x32)
         '''
-        super(USBConfiguration, self).__init__(app)
+        super(USBConfiguration, self).__init__(app, phy)
         self._index = index
         self._string = string
         self._string_index = 0
@@ -76,11 +78,18 @@ class USBConfiguration(USBBaseActor):
 
     @mutable('configuration_descriptor')
     def get_descriptor(self):
+        '''
+        Get the configuration descriptor.
+        The configuration descriptor is composed of one or more
+        interface descriptors.
+
+        :return: a string of the entire configuration descriptor
+        '''
         interface_descriptors = b''
         for i in self.interfaces:
             interface_descriptors += i.get_descriptor()
-        bLength = 9
-        bDescriptorType = 2
+        bLength = 9  # always 9
+        bDescriptorType = DescriptorType.Configuration
         wTotalLength = len(interface_descriptors) + 9
         bNumInterfaces = len(self.interfaces)
         d = struct.pack(
