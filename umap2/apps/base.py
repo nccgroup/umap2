@@ -94,3 +94,9 @@ class Umap2App(object):
         By default, do nothing with this information
         '''
         pass
+
+    def get_mutation(self, stage, data=None):
+        '''
+        mutation is only needed when fuzzing
+        '''
+        return None

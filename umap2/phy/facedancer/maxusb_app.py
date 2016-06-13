@@ -67,10 +67,10 @@ class MAXUSBApp(FacedancerApp):
         self.write_register(self.reg_pin_control, self.full_duplex | self.interrupt_level)
 
     def get_mutation(self, stage, data=None):
-        if self.fuzzer:
-            data = {} if data is None else data
-            return self.fuzzer.get_mutation(stage=stage, data=data)
-        return None
+        '''
+        .. todo: remove once the umap app instance is given to the USB classes
+        '''
+        return self.app.get_mutation(stage, data)
 
     def init_commands(self):
         self.read_register_cmd = FacedancerCommand(self.app_num, 0x00, b'')

@@ -56,43 +56,49 @@ class Umap2FuzzApp(Umap2EmulationApp):
         '''
         :return: whether performed reconnection
         '''
-        if self.should_disconnect():
+        if self._should_disconnect():
             self.phy.disconnect()
-            self.clear_disconnect_trigger()
+            self._clear_disconnect_trigger()
             # wait for reconnection request; no point in returning to service_irqs loop while not connected!
-            while not self.should_reconnect():
-                self.clear_disconnect_trigger()  # be robust to additional disconnect requests
+            while not self._should_reconnect():
+                self._clear_disconnect_trigger()  # be robust to additional disconnect requests
                 time.sleep(0.1)
             # now that we received a reconnect request, flow into the handling of it...
         # be robust to reconnection requests, whether received after a disconnect request, or standalone
         # (not sure this is right, might be better to *not* be robust in the face of possible misuse?)
-        if self.should_reconnect():
+        if self._should_reconnect():
             self.phy.connect(self.dev)
-            self.clear_reconnect_trigger()
+            self._clear_reconnect_trigger()
             return True
         return False
 
-    def should_reconnect(self):
+    def _should_reconnect(self):
         if self.fuzzer:
             if os.path.isfile('/tmp/umap_kitty/trigger_reconnect'):
                 return True
         return False
 
-    def clear_reconnect_trigger(self):
+    def _clear_reconnect_trigger(self):
         trigger = '/tmp/umap_kitty/trigger_reconnect'
         if os.path.isfile(trigger):
             os.remove(trigger)
 
-    def should_disconnect(self):
+    def _should_disconnect(self):
         if self.fuzzer:
             if os.path.isfile('/tmp/umap_kitty/trigger_disconnect'):
                 return True
         return False
 
-    def clear_disconnect_trigger(self):
+    def _clear_disconnect_trigger(self):
         trigger = '/tmp/umap_kitty/trigger_disconnect'
         if os.path.isfile(trigger):
             os.remove(trigger)
+
+    def get_mutation(self, stage, data=None):
+        if self.fuzzer:
+            data = {} if data is None else data
+            return self.fuzzer.get_mutation(stage=stage, data=data)
+        return None
 
 
 def main():
