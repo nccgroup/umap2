@@ -89,7 +89,7 @@ class USBConfiguration(USBBaseActor):
         for i in self.interfaces:
             interface_descriptors += i.get_descriptor()
         bLength = 9  # always 9
-        bDescriptorType = DescriptorType.Configuration
+        bDescriptorType = DescriptorType.configuration
         wTotalLength = len(interface_descriptors) + 9
         bNumInterfaces = len(self.interfaces)
         d = struct.pack(
