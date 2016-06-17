@@ -39,6 +39,26 @@ instead, use pip to install it:
 
     $ pip install git+https://github.com/nccgroup/umap2.git#egg=umap2
 
+"Soft" Dependencies
+-------------------
+
+Umap2 dependencies are listed in setup.py and will be installed with umap,
+however, there are couple of things that you might want to do to add support
+for some devices:
+
+Mass Storage
+~~~~~~~~~~~~
+
+1. Requires a disk image called "stick.img" in the running directory
+
+MTP
+~~~
+
+1. Requires a folder/file called "mtp_fs" in the current directory.
+2. Requires the python package pymtpdevice. This package is not on pypi
+   at the moment, but can be downloaded and installed from here:
+   https://github.com/BinyaminSharet/Mtp
+
 Usage
 -----
 
