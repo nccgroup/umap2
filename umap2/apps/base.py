@@ -29,6 +29,7 @@ class Umap2App(object):
         ]
         self.logger = self.get_logger()
         self.num_processed = 0
+        self.fuzzer = None
 
     def get_logger(self):
         levels = {
