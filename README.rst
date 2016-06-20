@@ -33,11 +33,17 @@ Installation
 
 Since this is a very early version,
 Umap2 is not yet available from pypi,
-instead, use pip to install it:
+instead, use pip to install it directly from github:
 
 ::
 
     $ pip install git+https://github.com/nccgroup/umap2.git#egg=umap2
+
+Python Versions
+---------------
+
+Umap2 is python2/3 compatible for most parts.
+However, the fuzzer script (**umap2kitty**) runs only on python2.
 
 "Soft" Dependencies
 -------------------

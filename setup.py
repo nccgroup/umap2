@@ -16,7 +16,11 @@ setup(
     author_email='',
     url='https://github.com/nccgroup/umap2',
     packages=find_packages(),
-    install_requires=['docopt', 'kittyfuzzer', 'katnip'],
+    install_requires=[
+        'docopt',
+        'kittyfuzzer>=0.6.9',
+        'katnip>=0.2.4'
+    ],
     keywords='security,usb,fuzzing,kitty',
     entry_points={
         'console_scripts': [
