@@ -131,6 +131,16 @@ which might be unified into a single script in the future.
 
 After stage 3 is performed, the fuzzing session will begin.
 
+Note About MTP fuzzing
+++++++++++++++++++++++
+
+While umap2 may be used to emulate and discover MTP devices
+(see "Soft dependencies" section of this README),
+it does not fuzz the MTP layer at this point.
+In order to fuzz the MTP layer,
+you can use the fuzzer embedded in the MTP library.
+We plan to support MTP fuzzing directly from umap2 in future releases.
+
 Host OS Detection
 ~~~~~~~~~~~~~~~~~
 
