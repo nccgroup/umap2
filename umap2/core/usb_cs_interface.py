@@ -45,7 +45,7 @@ class USBCSInterface(USBBaseActor):
         response = None
 
         self.info((
-            'received GET_DESCRIPTOR req %d, index %d, language 0x%04x, length %d'
+            'Received GET_DESCRIPTOR req %d, index %d, language 0x%04x, length %d'
         ) % (dtype, dindex, lang, n))
 
         # TODO: handle KeyError
@@ -59,7 +59,7 @@ class USBCSInterface(USBBaseActor):
             self.verbose('sent %d bytes in response' % (n))
 
     def handle_set_interface_request(self, req):
-        self.info('received SET_INTERFACE request')
+        self.info('Received SET_INTERFACE request')
         self.phy.stall_ep0()
 
     # Table 9-12 of USB 2.0 spec (pdf page 296)

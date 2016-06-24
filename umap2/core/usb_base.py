@@ -75,7 +75,7 @@ class USBBaseActor(object):
         :param str_id: string id
         :return: the string, or None if id does not exist
         '''
-        self.debug('getting string by id %#x' % (str_id))
+        self.debug('Getting string by id %#x' % (str_id))
         if str_id in self.str_dict:
             return self.str_dict[str_id]
         return None

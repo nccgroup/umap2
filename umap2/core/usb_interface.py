@@ -72,7 +72,7 @@ class USBInterface(USBBaseActor):
         n = req.length
 
         response = None
-        self.debug(('received GET_DESCRIPTOR req %d, index %d, language 0x%04x, length %d' % (dtype, dindex, lang, n)))
+        self.debug(('Received GET_DESCRIPTOR req %d, index %d, language 0x%04x, length %d' % (dtype, dindex, lang, n)))
         # TODO: handle KeyError
         response = self.descriptors[dtype]
         if callable(response):
@@ -84,7 +84,7 @@ class USBInterface(USBBaseActor):
             self.verbose('sent %d bytes in response' % (n))
 
     def handle_set_interface_request(self, req):
-        self.debug("received SET_INTERFACE request")
+        self.debug('Received SET_INTERFACE request')
         self.phy.stall_ep0()
         # self.phy.send_on_endpoint(0, b'')
 
