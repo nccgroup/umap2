@@ -141,9 +141,9 @@ class USBCDCDevice(USBDevice):
             vendor_id=vid,
             product_id=pid,
             device_rev=rev,
-            manufacturer_string='Vendor',
-            product_string='Product',
-            serial_number_string='Serial',
+            manufacturer_string='Umap2',
+            product_string='Umap2CDC',
+            serial_number_string='UMAP2-XXX-CDC',
             configurations=[
                 USBConfiguration(
                     app=app,
