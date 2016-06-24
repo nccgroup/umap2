@@ -173,7 +173,7 @@ class ScsiDevice(USBBaseActor):
                         self.tx.put(resp)
                     self.tx.put(scsi_status(cbw, 0))
                 except Exception as ex:
-                    self.warning('exception while proceeing opcode %#x' % (opcode))
+                    self.warning('exception while processing opcode %#x' % (opcode))
                     self.warning(ex)
                     self.tx.put(scsi_status(cbw, 2))
             else:
@@ -197,8 +197,8 @@ class ScsiDevice(USBBaseActor):
         version = 0x00
         response_data_format = 0x01
         config = (0x00, 0x00, 0x00)
-        vendor_id = b'PNY     '
-        product_id = b'USB 2.0 FD      '
+        vendor_id = b'MBYDCOR '
+        product_id = b'UMAP2 DISK IMAG '
         product_revision_level = b'8.02'
         part1 = struct.pack('BBBB', peripheral, RMB, version, response_data_format)
         part2 = struct.pack('BBB', *config) + vendor_id + product_id + product_revision_level
