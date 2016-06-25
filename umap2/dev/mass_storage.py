@@ -59,6 +59,10 @@ class ScsiSenseKeys(object):
 class USBMassStorageClass(USBClass):
     name = 'MassStorageClass'
 
+    def __init__(self, app, phy, scsi_device):
+        super(USBMassStorageClass, self).__init__(app, phy)
+        self.scsi_device = scsi_device
+
     def setup_local_handlers(self):
         self.local_handlers = {
             0xFF: self.handle_bulk_only_mass_storage_reset,
@@ -67,6 +71,7 @@ class USBMassStorageClass(USBClass):
 
     @mutable('msc_bulk_only_mass_storage_reset_response')
     def handle_bulk_only_mass_storage_reset(self, req):
+        self.scsi_device.handle_reset()
         return b''
 
     @mutable('msc_get_max_lun_response')
@@ -115,7 +120,7 @@ class ScsiDevice(USBBaseActor):
     '''
     Implementation of subset of the SCSI protocol
     '''
-    name = 'SCSI Stack'
+    name = 'ScsiDevice'
 
     def __init__(self, app, disk_image):
         super(ScsiDevice, self).__init__(app, None)
@@ -137,17 +142,21 @@ class ScsiDevice(USBBaseActor):
             ScsiCmds.READ_FORMAT_CAPACITIES: self.handle_read_format_capacities,
             ScsiCmds.SYNCHRONIZE_CACHE: self.handle_synchronize_cache,
         }
-        self.tx = Queue()
-        self.rx = Queue()
+        self.handle_reset()
         self.stop_event = Event()
         self.thread = Thread(target=self.handle_data_loop)
         self.thread.daemon = True
         self.thread.start()
+
+    def handle_reset(self):
+        self.debug('handling reset')
         self.is_write_in_progress = False
         self.write_cbw = None
         self.write_base_lba = 0
         self.write_length = 0
         self.write_data = b''
+        self.tx = Queue()
+        self.rx = Queue()
 
     def stop(self):
         self.stop_event.set()
@@ -180,9 +189,10 @@ class ScsiDevice(USBBaseActor):
                 raise Exception('No handler for opcode %#x' % (opcode))
 
     def handle_write_data(self, data):
-        self.debug('got %#x bytes of SCSI write data' % (len(data)))
         self.write_data += data
+        self.debug('Got %#x bytes of SCSI write data, written so far: %s' % (len(data), len(self.write_data)))
         if len(self.write_data) >= self.write_length:
+            self.info('Got all write data')
             # done writing
             self.disk_image.put_sector_data(self.write_base_lba, self.write_data)
             self.is_write_in_progress = False
@@ -266,6 +276,7 @@ class ScsiDevice(USBBaseActor):
         self.write_cbw = cbw
         self.write_base_lba = base_lba
         self.write_length = num_blocks * self.disk_image.block_size
+        self.debug('SCSI Write (10) total expected length: %#x' % (self.write_length))
         self.is_write_in_progress = True
 
     def handle_read_10(self, cbw):
@@ -420,7 +431,7 @@ class USBMassStorageInterface(USBInterface):
                 #     handler=None
                 # ),
             ],
-            device_class=USBMassStorageClass(app, phy),
+            device_class=USBMassStorageClass(app, phy, scsi_device),
         )
         self.scsi_device = scsi_device
 
@@ -477,5 +488,12 @@ class USBMassStorageDevice(USBDevice):
         self.scsi_device.stop()
         self.disk_image.close()
 
+    def handle_set_address_request(self, req):
+        '''
+        When a new address is set,
+        we should reset some flags in the scsi device ...
+        '''
+        self.scsi_device.handle_reset()
+        super(USBMassStorageDevice, self).handle_set_address_request(req)
 
 usb_device = USBMassStorageDevice
