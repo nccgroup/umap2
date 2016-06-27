@@ -96,12 +96,11 @@ class DiskImage:
         self.image.close()
 
     def get_sector_count(self):
-        return int(self.size / self.block_size) - 1
+        return (self.size // self.block_size) - 1
 
     def get_sector_data(self, address):
         block_start = address * self.block_size
-        block_end = (address + 1) * self.block_size   # slices are NON-inclusive
-
+        block_end = block_start + self.block_size   # slices are NON-inclusive
         return self.image[block_start:block_end]
 
     def put_sector_data(self, address, data):
@@ -146,6 +145,7 @@ class ScsiDevice(USBBaseActor):
             ScsiCmds.SYNCHRONIZE_CACHE: self.handle_synchronize_cache,
             ScsiCmds.READ_CAPACITY_16: self.handle_read_capacity_16,
         }
+        self.is_write_in_progress = False
         self.handle_reset()
         self.stop_event = Event()
         self.thread = Thread(target=self.handle_data_loop)
@@ -154,6 +154,8 @@ class ScsiDevice(USBBaseActor):
 
     def handle_reset(self):
         self.debug('handling reset')
+        if self.is_write_in_progress and self.write_data:
+            self.disk_image.put_sector_data(self.write_base_lba, self.write_data)
         self.is_write_in_progress = False
         self.write_cbw = None
         self.write_base_lba = 0
@@ -255,7 +257,7 @@ class ScsiDevice(USBBaseActor):
         # .. todo: is the length correct?
         self.debug('SCSI Read Capacity(10), data: %s' % hexlify(cbw.cb[1:]))
         lastlba = self.disk_image.get_sector_count()
-        length = 0x00000200
+        length = self.disk_image.block_size
         response = struct.pack('>II', lastlba, length)
         return response
 
@@ -264,7 +266,7 @@ class ScsiDevice(USBBaseActor):
         # .. todo: is the length correct?
         self.debug('SCSI Read Capacity(16), data: %s' % hexlify(cbw.cb[1:]))
         lastlba = self.disk_image.get_sector_count()
-        length = 0x00000200
+        length = self.disk_image.block_size
         response = struct.pack('>BBQIBB', 0x9e, 0x10, lastlba, length, 0x00, 0x00)
         return response
 
@@ -293,12 +295,12 @@ class ScsiDevice(USBBaseActor):
         self.is_write_in_progress = True
 
     def handle_read_10(self, cbw):
-        base_lba = struct.unpack('>I', cbw.cb[2:6])[0]
-        num_blocks = struct.unpack('>H', cbw.cb[7:9])[0]
+        base_lba, group, num_blocks = struct.unpack('>IBH', cbw.cb[2:9])
         self.debug('SCSI Read (10), lba %#x + %#x block(s)' % (base_lba, num_blocks))
         for block_num in range(num_blocks):
             data = self.disk_image.get_sector_data(base_lba + block_num)
             self.tx.put(data)
+        self.debug('SCSI Read (10) done')
 
     @mutable('scsi_write_6_response')
     def handle_write_6(self, cbw):
@@ -359,7 +361,7 @@ class ScsiDevice(USBBaseActor):
                 report = self._build_page_report(page, subpage, data)
             elif subpage == 0xff:
                 report = self.handle_scsi_mode_sense(mode_type, 0x1c, 0x00, alloc_len, ctrl, False)
-                report += self.handle_scsi_mode_sense(mode_type, 0x1c, 0x01, alloc_len, ctrl, False)
+                # report += self.handle_scsi_mode_sense(mode_type, 0x1c, 0x01, alloc_len, ctrl, False)
         # case: all pages
         elif page == 0x3f:
             # return all pages that we got ...
@@ -394,7 +396,7 @@ class ScsiDevice(USBBaseActor):
         response = struct.pack('>I', 8)
         num_sectors = 0x1000
         reserved = 0x1000
-        sector_size = 0x200
+        sector_size = self.disk_image.block_size
         response += struct.pack('>IHH', num_sectors, reserved, sector_size)
         return response
 
