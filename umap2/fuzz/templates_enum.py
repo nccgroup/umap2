@@ -6,9 +6,9 @@ from kitty.model import LE16, UInt8, BitField, String, RandomBytes
 # containers
 from kitty.model import Template, Container, List
 # dynamic fields
-from kitty.model import ElementCount
+from kitty.model import ElementCount, SizeInBytes
 # encoders
-from kitty.model import StrEncodeEncoder
+from kitty.model import StrEncodeEncoder, ENC_INT_LE
 from templates_generic import Descriptor, SubDescriptor
 
 
@@ -73,7 +73,7 @@ configuration_descriptor = Template(
     fields=[
         UInt8(name='bLength', value=9),
         UInt8(name='bDescriptorType', value=_DescriptorTypes.CONFIGURATION),
-        LE16(name='wTotalLength', value=9),
+        SizeInBytes(name='wTotalLength', sized_field='/', length=16, encoder=ENC_INT_LE),
         ElementCount(name='bNumInterfaces', depends_on='interfaces', length=8),
         UInt8(name='bConfigurationValue', value=1),
         UInt8(name='iConfiguration', value=0),
