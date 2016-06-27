@@ -37,6 +37,7 @@ class ScsiCmds(object):
     VERIFY_10 = 0x2F
     SYNCHRONIZE_CACHE = 0x35
     MODE_SENSE_10 = 0x5A
+    READ_CAPACITY_16 = 0x9e
 
 
 class ScsiSenseKeys(object):
@@ -143,6 +144,7 @@ class ScsiDevice(USBBaseActor):
             ScsiCmds.MODE_SENSE_10: self.handle_mode_sense_10,
             ScsiCmds.READ_FORMAT_CAPACITIES: self.handle_read_format_capacities,
             ScsiCmds.SYNCHRONIZE_CACHE: self.handle_synchronize_cache,
+            ScsiCmds.READ_CAPACITY_16: self.handle_read_capacity_16,
         }
         self.handle_reset()
         self.stop_event = Event()
@@ -250,11 +252,20 @@ class ScsiDevice(USBBaseActor):
 
     @mutable('scsi_read_capacity_10_response')
     def handle_read_capacity_10(self, cbw):
-        self.debug('SCSI Read Capacity, data: %s' % hexlify(cbw.cb[1:]))
+        # .. todo: is the length correct?
+        self.debug('SCSI Read Capacity(10), data: %s' % hexlify(cbw.cb[1:]))
         lastlba = self.disk_image.get_sector_count()
-        logical_block_address = struct.pack('>I', lastlba)
         length = 0x00000200
-        response = logical_block_address + struct.pack('>I', length)
+        response = struct.pack('>II', lastlba, length)
+        return response
+
+    @mutable('scsi_read_capacity_16_response')
+    def handle_read_capacity_16(self, cbw):
+        # .. todo: is the length correct?
+        self.debug('SCSI Read Capacity(16), data: %s' % hexlify(cbw.cb[1:]))
+        lastlba = self.disk_image.get_sector_count()
+        length = 0x00000200
+        response = struct.pack('>BBQIBB', 0x9e, 0x10, lastlba, length, 0x00, 0x00)
         return response
 
     @mutable('scsi_send_diagnostic_response')
