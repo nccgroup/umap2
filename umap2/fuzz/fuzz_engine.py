@@ -20,7 +20,13 @@ from kitty.interfaces import WebInterface
 from kitty.model import GraphModel
 from kitty.model import Template, Meta, String, UInt32
 
-import katnip.templates.usb as usb_templates
+import templates_audio
+import templates_cdc
+import templates_enum
+import templates_generic
+import templates_hid
+import templates_mass_storage
+import templates_smart_card
 
 from controller import UmapController
 
@@ -112,7 +118,14 @@ def get_model(options):
     '''
     stage_file = options['--stage-file']
     stages = get_stages(stage_file)
-    templates = enumerate_templates(usb_templates)
+    templates = {}
+    templates.update(enumerate_templates(templates_audio))
+    templates.update(enumerate_templates(templates_cdc))
+    templates.update(enumerate_templates(templates_enum))
+    templates.update(enumerate_templates(templates_generic))
+    templates.update(enumerate_templates(templates_hid))
+    templates.update(enumerate_templates(templates_mass_storage))
+    templates.update(enumerate_templates(templates_smart_card))
     g = GraphModel('usb model (%s)' % (stage_file))
     for stage in stages:
         if stage in templates:
