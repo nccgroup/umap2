@@ -479,3 +479,5 @@ class USBDeviceRequest:
             return self.index
         elif rec == 2:              # endpoint
             return self.index & 0xf
+        else:
+            return self.index
