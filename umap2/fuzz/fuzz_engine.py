@@ -165,7 +165,7 @@ def get_fuzzer(options=None):
         '--disconnect-delays': '0.0,0.0'
     }
     local_options.update(options)
-    fuzzer = ClientFuzzer(name='UmapFuzzer', option_line=local_options['--kitty-options'])
+    fuzzer = ClientFuzzer(name='Umap2', option_line=local_options['--kitty-options'])
     fuzzer.set_interface(WebInterface())
 
     target = ClientTarget(name='USBTarget')
