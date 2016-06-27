@@ -445,7 +445,7 @@ class USBDeviceRequest:
             self.get_recipient(),
             self.request,
             self.value,
-            self.index,
+            self.get_index(),
             self.length
         )
         return s
