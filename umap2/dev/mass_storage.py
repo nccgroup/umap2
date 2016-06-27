@@ -107,6 +107,8 @@ class DiskImage:
         block_start = address * self.block_size
         block_end = (address + 1) * self.block_size   # slices are NON-inclusive
 
+        pad_len = (self.block_size - (len(data) % self.block_size)) % self.block_size
+        data += '\x00' * pad_len
         self.image[block_start:block_end] = data[:self.block_size]
         self.image.flush()
 
@@ -190,7 +192,7 @@ class ScsiDevice(USBBaseActor):
 
     def handle_write_data(self, data):
         self.write_data += data
-        self.debug('Got %#x bytes of SCSI write data, written so far: %s' % (len(data), len(self.write_data)))
+        self.debug('Got %#x bytes of SCSI write data, written so far: %#x' % (len(data), len(self.write_data)))
         if len(self.write_data) >= self.write_length:
             self.info('Got all write data')
             # done writing
@@ -299,44 +301,80 @@ class ScsiDevice(USBBaseActor):
     def handle_verify_10(self, cbw):
         raise NotImplementedError('yet...')
 
-    def handle_scsi_mode_sense(self, cbw):
-        page = cbw.cb[2] & 0x3f
+    def _build_page0_report(self, page, data):
+        report = struct.pack('BB', page, len(data))
+        report += data
+        return report
 
-        self.debug('SCSI Mode Sense, page code 0x%02x' % page)
+    def _build_subpage_report(self, page, subpage, data):
+        report = struct.pack('>BBH', page, subpage, len(data))
+        report += data
+        return report
 
-        if page == 0x1c:
-            medium_type = 0x00
-            device_specific_param = 0x00
-            block_descriptor_len = 0x00
-            mode_page_1c = b'\x1c\x06\x00\x05\x00\x00\x00\x00'
-            body = struct.pack('BBB', medium_type, device_specific_param, block_descriptor_len)
-            body += mode_page_1c
-            length = struct.pack('<B', len(body))
-            response = length + body
+    def _report_header(self, mode_type, mode_data_length):
+        # Based on seagate 100293068h.pdf
+        medium_type = 0x00
+        flags = 0x00
+        block_descriptor_len = 0x00
+        if mode_type == 6:  # Table 292
+            header_data = struct.pack('>3B', medium_type, flags, block_descriptor_len)
+            total_len = struct.pack('B', len(header_data) + mode_data_length)
+        else:  # Table 293
+            longlba = 0x00
+            header_data = struct.pack('>BBBBH', medium_type, flags, longlba, 0, block_descriptor_len)
+            total_len = struct.pack('>H', len(header_data) + mode_data_length)
+        return total_len + header_data
 
-        elif page == 0x3f:
-            length = 0x45  # .. todo:: this seems awefully wrong
-            medium_type = 0x00
-            device_specific_param = 0x00
-            block_descriptor_len = 0x08
-            mode_page = 0x00000000
-            response = struct.pack('<BBBBI', length, medium_type, device_specific_param, block_descriptor_len, mode_page)
+    def _build_page_report(self, page, subpage, data):
+        if subpage is None:
+            report = self._build_page0_report(page, data)
         else:
-            length = 0x07
-            medium_type = 0x00
-            device_specific_param = 0x00
-            block_descriptor_len = 0x00
-            mode_page = 0x00000000
-            response = struct.pack('<BBBBI', length, medium_type, device_specific_param, block_descriptor_len, mode_page)
-        return response
+            report = self._build_subpage_report(page, subpage, data)
+        return report
+
+    def handle_scsi_mode_sense(self, mode_type, page, subpage, alloc_len, ctrl, with_header=True):
+        # .. todo: implement response for unsupported pages
+        self.debug('SCSI Mode Sense(%d), page %#x subpage %#x' % (mode_type, page, subpage))
+        report = None
+        # wish there was a switch :(
+        if page == 0x1c:
+            # case: informational exceptions control (table 314)
+            if subpage == 0x00:
+                data = struct.pack('>BBII', 0x00, 0x05, 0x00, 0x00)
+                report = self._build_page_report(page, None, data)
+            # case: background control (table 300)
+            elif subpage == 0x01:
+                data = struct.pack('>BBHHHHH', 0x05, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00)
+                report = self._build_page_report(page, subpage, data)
+            elif subpage == 0xff:
+                report = self.handle_scsi_mode_sense(mode_type, 0x1c, 0x00, alloc_len, ctrl, False)
+                report += self.handle_scsi_mode_sense(mode_type, 0x1c, 0x01, alloc_len, ctrl, False)
+        # case: all pages
+        elif page == 0x3f:
+            # return all pages that we got ...
+            report = self.handle_scsi_mode_sense(mode_type, 0x1c, 0xff, alloc_len, ctrl, False)
+        if report is None:
+            # default behaviour, taken from previous implementation
+            # this should probably be changed ...
+            report = '\x07\x00\x00\x00\x00\x00\x00\x00'
+        if with_header:
+            self.debug('SCSI mode sense (%d) - adding header' % (mode_type))
+            report = self._report_header(mode_type, len(report)) + report
+        return report
 
     @mutable('scsi_mode_sense_6_response')
     def handle_mode_sense_6(self, cbw):
-        return self.handle_scsi_mode_sense(cbw)
+        # .. todo: DBD, PC
+        page, subpage, alloc_len, control = struct.unpack('>4B', cbw.cb[2:6])
+        page &= 0x3f
+        return self.handle_scsi_mode_sense(6, page, subpage, alloc_len, control)
 
     @mutable('scsi_mode_sense_10_response')
     def handle_mode_sense_10(self, cbw):
-        return self.handle_scsi_mode_sense(cbw)
+        # .. todo: LLBA, DBD, PC
+        page, subpage, _, _, _, alloc_len, control = struct.unpack('>5BHB', cbw.cb[2:10])
+        page &= 0x3f
+        return self.handle_scsi_mode_sense(10, page, subpage, alloc_len, control)
 
     @mutable('scsi_read_format_capacities')
     def handle_read_format_capacities(self, cbw):
