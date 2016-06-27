@@ -9,6 +9,8 @@
 # This device doesn't work properly yet!!!!!
 
 import struct
+from six.moves.queue import Queue
+from binascii import hexlify
 from umap2.core.usb import DescriptorType
 from umap2.core.usb_class import USBClass
 from umap2.core.usb_device import USBDevice
@@ -172,8 +174,8 @@ class USBSmartcardInterface(USBInterface):
                 transfer_type=USBEndpoint.transfer_type_interrupt,
                 sync_type=USBEndpoint.sync_type_none,
                 usage_type=USBEndpoint.usage_type_data,
-                max_packet_size=0x40,
-                interval=8,
+                max_packet_size=8,
+                interval=0,
                 handler=self.handle_buffer_available
             ),
         ]
@@ -193,11 +195,11 @@ class USBSmartcardInterface(USBInterface):
             device_class=USBSmartcardClass(app, phy)
         )
 
-        self.trigger = False
-        self.initial_data = b'\x50\x03'
         self.proto = 0
         self.abProtocolDataStructure = b'\x11\x00\x00\x0a\x00'
         self.clock_status = 0x00
+        self.int_q = Queue()
+        self.int_q.put(b'\x50\x03')
 
         self.operations = {
             PcToRdrOpcode.IccPowerOn: self.handle_PcToRdr_IccPowerOn,
@@ -218,26 +220,18 @@ class USBSmartcardInterface(USBInterface):
 
     @mutable('smartcard_IccPowerOn_response')
     def handle_PcToRdr_IccPowerOn(self, slot, seq, data):
-        voltage = data[7]
-        if voltage == 2:
-            abData = b'\x3b\x6e\x00\x00\x80\x31\x80\x66\xb0\x84\x12\x01\x6e\x01\x83\x00\x90\x00'
-            return R2P_DataBlock(
-                slot=slot,
-                seq=seq,
-                status=0x00,
-                error=0x80,
-                chain_param=0x00,
-                data=abData
-            )
-        else:
-            return R2P_DataBlock(
-                slot=slot,
-                seq=seq,
-                status=0x40,
-                error=0xfe,
-                chain_param=0x00,
-                data=b''
-            )
+        abData = b'\x3b\x6e\x00\x00\x80\x31\x80\x66\xb0\x84\x12\x01\x6e\x01\x83\x00\x90\x00'
+        # Entropia Universe Gold card
+        # Taken from http://ludovic.rousseau.free.fr/softwares/pcsc-tools/smartcard_list.txt
+        abData = b'\x3B\x6B\x00\x00\x00\x31\xC0\x64\xA9\xEC\x01\x00\x82\x90\x00'
+        return R2P_DataBlock(
+            slot=slot,
+            seq=seq,
+            status=0x00,
+            error=0x80,
+            chain_param=0x00,
+            data=abData
+        )
 
     @mutable('smartcard_IccPowerOff_response')
     def handle_PcToRdr_IccPowerOff(self, slot, seq, data):
@@ -472,9 +466,12 @@ class USBSmartcardInterface(USBInterface):
             self.send_on_endpoint(2, response)
 
     def handle_buffer_available(self):
-        if not self.trigger:
-            self.send_on_endpoint(3, self.initial_data)
-            self.trigger = True
+        if not self.int_q.empty():
+            buff = self.int_q.get()
+            self.debug('Sending data to host: %s' % (hexlify(buff)))
+            self.send_on_endpoint(3, buff)
+        else:
+            self.send_on_endpoint(3, b'')
 
 
 class USBSmartcardDevice(USBDevice):
