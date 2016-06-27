@@ -392,7 +392,11 @@ class USBDevice(USBBaseActor):
         self.supported_device_class_trigger = True
 
         # configs are one-based
-        self.config_num = req.value - 1
+        if (req.value) > len(self.configurations):
+            self.error('Host tries to set invalid configuration: %#x' % (req.value - 1))
+            self.config_num = 0
+        else:
+            self.config_num = req.value - 1
         self.info('Setting configuration: %#x' % self.config_num)
         self.configuration = self.configurations[self.config_num]
         self.state = State.configured
