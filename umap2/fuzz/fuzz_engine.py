@@ -20,13 +20,13 @@ from kitty.interfaces import WebInterface
 from kitty.model import GraphModel
 from kitty.model import Template, Meta, String, UInt32
 
-import templates_audio
-import templates_cdc
-import templates_enum
-import templates_generic
-import templates_hid
-import templates_mass_storage
-import templates_smart_card
+from templates import audio
+from templates import cdc
+from templates import enum
+from templates import generic
+from templates import hid
+from templates import mass_storage
+from templates import smart_card
 
 from controller import UmapController
 
@@ -119,13 +119,13 @@ def get_model(options):
     stage_file = options['--stage-file']
     stages = get_stages(stage_file)
     templates = {}
-    templates.update(enumerate_templates(templates_audio))
-    templates.update(enumerate_templates(templates_cdc))
-    templates.update(enumerate_templates(templates_enum))
-    templates.update(enumerate_templates(templates_generic))
-    templates.update(enumerate_templates(templates_hid))
-    templates.update(enumerate_templates(templates_mass_storage))
-    templates.update(enumerate_templates(templates_smart_card))
+    templates.update(enumerate_templates(audio))
+    templates.update(enumerate_templates(cdc))
+    templates.update(enumerate_templates(enum))
+    templates.update(enumerate_templates(generic))
+    templates.update(enumerate_templates(hid))
+    templates.update(enumerate_templates(mass_storage))
+    templates.update(enumerate_templates(smart_card))
     g = GraphModel('usb model (%s)' % (stage_file))
     for stage in stages:
         if stage in templates:
