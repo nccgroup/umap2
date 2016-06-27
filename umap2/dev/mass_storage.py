@@ -3,6 +3,12 @@
 
     Something to check all over the place - little/big endianess of data
     It is better now (6/6/2016) but still needs improvements
+
+.. todo::
+
+    it seems that our current phy, facedancer, is very slow,
+    so we are only able to emulate very small disk images (~3M).
+    Take that into consideration before using it ...
 '''
 from mmap import mmap
 import os
@@ -85,11 +91,20 @@ class DiskImage:
         self.filename = filename
         self.block_size = block_size
 
-        statinfo = os.stat(self.filename)
-        self.size = statinfo.st_size
-
-        self.file = open(self.filename, 'r+b')
-        self.image = mmap(self.file.fileno(), 0)
+        try:
+            statinfo = os.stat(self.filename)
+            self.size = statinfo.st_size
+            self.file = open(self.filename, 'r+b')
+            self.image = mmap(self.file.fileno(), 0)
+        except:
+            print('''
+----------------------------------------------------------------------
+No disk image named '%s' was found.
+You can use the disk image from umap2/data/fat32.3M.stick.img
+as a small disk image (extract it using `tar xvf fat32.3M.stick.img`)
+----------------------------------------------------------------------
+            ''' % (filename))
+            raise Exception('No file named %s found.' % (filename))
 
     def close(self):
         self.image.flush()
@@ -300,7 +315,6 @@ class ScsiDevice(USBBaseActor):
         for block_num in range(num_blocks):
             data = self.disk_image.get_sector_data(base_lba + block_num)
             self.tx.put(data)
-        self.debug('SCSI Read (10) done')
 
     @mutable('scsi_write_6_response')
     def handle_write_6(self, cbw):
@@ -320,7 +334,7 @@ class ScsiDevice(USBBaseActor):
         return report
 
     def _build_subpage_report(self, page, subpage, data):
-        report = struct.pack('>BBH', page, subpage, len(data))
+        report = struct.pack('>BBH', page | 0x40, subpage, len(data))
         report += data
         return report
 
@@ -354,14 +368,14 @@ class ScsiDevice(USBBaseActor):
             # case: informational exceptions control (table 314)
             if subpage == 0x00:
                 data = struct.pack('>BBII', 0x00, 0x05, 0x00, 0x00)
-                report = self._build_page_report(page, None, data)
+                report = self._build_page_report(page, 0x00, data)
             # case: background control (table 300)
             elif subpage == 0x01:
                 data = struct.pack('>BBHHHHH', 0x05, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00)
                 report = self._build_page_report(page, subpage, data)
             elif subpage == 0xff:
                 report = self.handle_scsi_mode_sense(mode_type, 0x1c, 0x00, alloc_len, ctrl, False)
-                # report += self.handle_scsi_mode_sense(mode_type, 0x1c, 0x01, alloc_len, ctrl, False)
+                report += self.handle_scsi_mode_sense(mode_type, 0x1c, 0x01, alloc_len, ctrl, False)
         # case: all pages
         elif page == 0x3f:
             # return all pages that we got ...
@@ -470,17 +484,6 @@ class USBMassStorageInterface(USBInterface):
                     interval=0,
                     handler=self.handle_buffer_available
                 ),
-                # USBEndpoint(
-                #     app=app,
-                #     number=2,
-                #     direction=USBEndpoint.direction_in,
-                #     transfer_type=USBEndpoint.transfer_type_interrupt,
-                #     sync_type=USBEndpoint.sync_type_none,
-                #     usage_type=USBEndpoint.usage_type_data,
-                #     max_packet_size=0x40,
-                #     interval=0,
-                #     handler=None
-                # ),
             ],
             device_class=USBMassStorageClass(app, phy, scsi_device),
         )
@@ -506,7 +509,7 @@ class USBMassStorageDevice(USBDevice):
         disk_image_filename='stick.img'
     ):
         self.disk_image = DiskImage(disk_image_filename, 0x200)
-        self.scsi_device = ScsiDevice(app, DiskImage(disk_image_filename, 0x200))
+        self.scsi_device = ScsiDevice(app, self.disk_image)
 
         super(USBMassStorageDevice, self).__init__(
             app=app,
