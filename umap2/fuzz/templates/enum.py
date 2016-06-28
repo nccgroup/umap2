@@ -9,7 +9,7 @@ from kitty.model import Template, Container, List
 from kitty.model import ElementCount, SizeInBytes
 # encoders
 from kitty.model import StrEncodeEncoder, ENC_INT_LE
-from templates_generic import Descriptor, SubDescriptor
+from generic import Descriptor, SubDescriptor
 
 
 class _DescriptorTypes:
@@ -97,9 +97,9 @@ configuration_descriptor = Template(
                                 name='endpoint_descriptor',
                                 descriptor_type=_DescriptorTypes.ENDPOINT,
                                 fields=[
-                                    UInt8(name='bEndpointAddress', value=0),
+                                    UInt8(name='bEndpointAddress', value=1),
                                     BitField(name='bmAttributes', value=0, length=8),
-                                    LE16(name='wMaxPacketSize', value=65535),
+                                    LE16(name='wMaxPacketSize', value=0x40),
                                     UInt8(name='bInterval', value=0)
                                 ])
                         ]),

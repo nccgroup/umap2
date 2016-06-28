@@ -23,8 +23,8 @@ from kitty.model import UInt8, LE16, BitField, Static
 from kitty.model import ENC_INT_LE
 from kitty.core import KittyException
 from random import Random
-from templates_generic import DynamicInt, Descriptor
-from templates_enum import _DescriptorTypes
+from generic import DynamicInt, Descriptor
+from enum import _DescriptorTypes
 
 
 opcodes = {

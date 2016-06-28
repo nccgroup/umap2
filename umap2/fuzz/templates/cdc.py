@@ -3,8 +3,8 @@ CDC Device tempaltes
 '''
 from kitty.model import UInt8, LE16, BitField
 from kitty.model import Repeat
-from templates_generic import Descriptor
-from templates_enum import _DescriptorTypes
+from generic import Descriptor
+from enum import _DescriptorTypes
 
 
 class _CDC_DescriptorSubTypes:  # CDC Functional Descriptors

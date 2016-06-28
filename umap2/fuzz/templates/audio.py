@@ -2,10 +2,12 @@
 Audio device templates
 '''
 from kitty.model import UInt8, LE16, RandomBytes, BitField
-from kitty.model import Template, Repeat
-from templates_hid import GenerateHidReport
-from templates_generic import Descriptor, SizedPt, DynamicInt
-from templates_enum import _DescriptorTypes
+from kitty.model import Template, Repeat, List, Container
+from kitty.model import ElementCount, SizeInBytes
+from kitty.model import ENC_INT_LE
+from hid import GenerateHidReport
+from generic import Descriptor, SizedPt, DynamicInt, SubDescriptor
+from enum import _DescriptorTypes
 
 
 class _AC_DescriptorSubTypes:  # AC Interface Descriptor Subtype

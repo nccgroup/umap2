@@ -6,7 +6,7 @@ from kitty.model import UInt8, LE32, RandomBytes
 from kitty.model import SizeInBytes
 from kitty.model import ENC_INT_LE
 from kitty.model import Template, Container
-from templates_generic import DynamicInt
+from generic import DynamicInt
 
 
 class R2PParameters(Template):
