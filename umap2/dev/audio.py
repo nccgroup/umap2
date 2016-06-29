@@ -3,6 +3,7 @@
 # Contains class definitions to implement a USB Audio device.
 
 import struct
+from binascii import hexlify
 from umap2.core.usb import DescriptorType
 from umap2.core.usb_class import USBClass
 from umap2.core.usb_device import USBDevice
@@ -33,19 +34,19 @@ class USBAudioClass(USBClass):
 
     @mutable('audio_get_max_response', silent=True)
     def handle_audio_get_max(self, req):
-        return b'\x64\x00'
+        return b'\x00\x20'
 
     @mutable('audio_get_min_response', silent=True)
     def handle_audio_get_min(self, req):
-        return b'\xa0\x00'
+        return b'\x00\x20'
 
     @mutable('audio_get_res_response', silent=True)
     def handle_audio_get_res(self, req):
-        return b'\x30\x00'
+        return b'\x00\x20'
 
     @mutable('audio_get_cur_response', silent=True)
     def handle_audio_get_cur(self, req):
-        return b''
+        return b'\x00\x20'
 
     @mutable('audio_set_res_response', silent=True)
     def handle_audio_set_res(self, req):
@@ -262,6 +263,19 @@ class USBAudioInterface(USBInterface):
             b'\x09\x00\x75\x08\x95\x03\x81\x02\x09\x00\x95\x04\x91\x02\xC0'
         )
 
+    def get_descriptor(self):
+        res = None
+        if self.subclass == 0x01:
+            # only for AudioControl Interface
+            res = self.ac_get_descriptor()
+        if res is None:
+            res = super(USBAudioInterface, self).get_descriptor()
+        return res
+
+    @mutable('audio_control_interface_descriptor')
+    def ac_get_descriptor(self):
+        return None
+
 
 class USBAudioDevice(USBDevice):
     name = 'AudioDevice'
@@ -290,7 +304,7 @@ class USBAudioDevice(USBDevice):
                         USBAudioInterface(app, phy, 0, USBClass.Audio, 0x01, 0x00),
                         USBAudioInterface(app, phy, 1, USBClass.Audio, 0x02, 0x00),
                         USBAudioInterface(app, phy, 2, USBClass.Audio, 0x02, 0x00),
-                        USBAudioInterface(app, phy, 3, USBClass.HID, 0x00, 0x00),
+                        # USBAudioInterface(app, phy, 3, USBClass.HID, 0x00, 0x00),
                     ]
                 )
             ],

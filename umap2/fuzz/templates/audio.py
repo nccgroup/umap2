@@ -141,3 +141,113 @@ audio_report_descriptor = Template(
         '050C0901A1011500250109E909EA75019502810209E209008106050B092095018142050C09009503810226FF000900750895038102090095049102C0'.decode('hex')
     )
 )
+
+
+def size_in_words(x):
+    return len(x) // 16
+
+
+# This template is based on
+# http://www.usb.org/developers/docs/devclass_docs/audio10.pdf
+# Chapter 4.3
+audio_control_interface_descriptor = Template(
+    name='audio_control_interface_descriptor',
+    fields=[
+        SubDescriptor(
+            name='Standard AC interface descriptor',
+            descriptor_type=_DescriptorTypes.INTERFACE,
+            fields=[
+                UInt8(name='bInterfaceNumber', value=0x00),
+                UInt8(name='bAlternateSetting', value=0x00),
+                ElementCount(name='bNumEndpoints', depends_on='endpoints', length=8),
+                UInt8(name='bInterfaceClass', value=0x01, fuzzable=False),  # audio
+                UInt8(name='bInterfaceSubClass', value=0x01, fuzzable=False),  # audio control
+                UInt8(name='bInterfaceProtocol', value=0x00),
+                UInt8(name='iInterface', value=0x01),
+            ]
+        ),
+        List(
+            name='Class-Specific AC interfaces',
+            fields=[
+                SubDescriptor(
+                    name='header',
+                    descriptor_type=_DescriptorTypes.CS_INTERFACE,
+                    fields=[
+                        UInt8(name='bDesciptorSubType', value=0x01),
+                        LE16(name='bcdADC', value=0x100),
+                        SizeInBytes(name='wTotalLength', sized_field='Class-Specific AC interfaces', length=16, encoder=ENC_INT_LE),
+                        SizeInBytes(name='bInCollection', sized_field='baInterfaceNr', length=8),
+                        RandomBytes(name='baInterfaceNr', value='\x01', min_length=0, max_length=250),
+                    ]
+                ),
+                SubDescriptor(
+                    name='input terminal',
+                    descriptor_type=_DescriptorTypes.CS_INTERFACE,
+                    fields=[
+                        UInt8(name='bDesciptorSubType', value=0x02),
+                        UInt8(name='bTerminalID', value=1),
+                        LE16(name='wTerminalType', value=1),  # .. todo: review this field
+                        UInt8(name='bAssocTerminal', value=2),
+                        UInt8(name='bNrChannels', value=8),
+                        LE16(name='wChannelConfig', value=0xff),
+                        UInt8(name='iChannelNames', value=1),
+                        UInt8(name='iTerminal', value=1),
+                    ]
+                ),
+                SubDescriptor(
+                    name='output terminal',
+                    descriptor_type=_DescriptorTypes.CS_INTERFACE,
+                    fields=[
+                        UInt8(name='bDesciptorSubType', value=0x03),
+                        UInt8(name='bTerminalID', value=2),
+                        LE16(name='wTerminalType', value=1),  # .. todo: review this field
+                        UInt8(name='bAssocTerminal', value=1),
+                        UInt8(name='bSourceID', value=8),
+                        UInt8(name='iTerminal', value=1),
+                    ]
+                ),
+                SubDescriptor(
+                    name='mixer unit',
+                    descriptor_type=_DescriptorTypes.CS_INTERFACE,
+                    fields=[
+                        UInt8(name='bDesciptorSubType', value=0x04),
+                        UInt8(name='bUnitID', value=3),
+                        SizeInBytes(name='bNrInPins', sized_field='baSourceID', length=8),
+                        RandomBytes(name='baSourceID', value='\x01', min_length=0, max_length=250),
+                        UInt8(name='bNrChannels', value=8),
+                        LE16(name='wChannelConfig', value=0xaaaa),
+                        UInt8(name='iChannelNames', value=4),
+                        UInt8(name='bmControls', value=0xff),  # this should be re-checked !! (section 4.3.2.3)
+                        UInt8(name='iMixer', value=1),
+                    ]
+                ),
+                SubDescriptor(
+                    name='selector unit',
+                    descriptor_type=_DescriptorTypes.CS_INTERFACE,
+                    fields=[
+                        UInt8(name='bDesciptorSubType', value=0x05),
+                        UInt8(name='bUnitID', value=4),
+                        SizeInBytes(name='bNrInPins', sized_field='baSourceID', length=8),
+                        RandomBytes(name='baSourceID', value='\x01', min_length=0, max_length=250),
+                        UInt8(name='iSelector', value=1),
+                    ]
+                ),
+                SubDescriptor(
+                    name='feature unit',
+                    descriptor_type=_DescriptorTypes.CS_INTERFACE,
+                    fields=[
+                        UInt8(name='bDesciptorSubType', value=0x06),
+                        UInt8(name='bUnitID', value=5),
+                        UInt8(name='bSourceID', value=2),
+                        SizeInBytes(name='bControlSize', sized_field='bmaControls', length=8),
+                        RandomBytes(name='bmaControls', value='\x01', min_length=0, max_length=250),
+                        UInt8(name='iFeature', value=1),
+                    ]
+                ),
+                # .. todo: 4.3.2.6
+            ]
+        ),
+        # .. todo: endpoint descriptor??
+        Container(name='endpoints', fields=[])
+    ]
+)
