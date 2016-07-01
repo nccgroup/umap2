@@ -27,7 +27,7 @@ class USBEndpoint(USBBaseActor):
 
     def __init__(
             self, app, phy, number, direction, transfer_type, sync_type,
-            usage_type, max_packet_size, interval, handler):
+            usage_type, max_packet_size, interval, handler, cs_endpoints=None, device_class=None):
         '''
         :param app: umap2 application
         :param phy: physical connection
@@ -42,6 +42,8 @@ class USBEndpoint(USBBaseActor):
             func(data) -> None if direction is out,
             func() -> None if direction is IN
         :param handler: interrupt handler for the endpoint
+        :param cs_endpoints: list of class-specific endpoints (default: None)
+        :param device_class: USBClass instance (default: None)
 
         .. note:: OUT endpoint is 1, IN endpoint is either 2 or 3
         '''
@@ -55,6 +57,8 @@ class USBEndpoint(USBBaseActor):
         self.interval = interval
         self.handler = handler
         self.interface = None
+        self.device_class = device_class
+        self.cs_endpoints = [] if cs_endpoints is None else cs_endpoints
 
         self.request_handlers = {
             0: self.handle_get_status,
@@ -66,10 +70,13 @@ class USBEndpoint(USBBaseActor):
 
     def handle_get_status(self, req):
         self.info('in GET_STATUS of endpoint %d' % self.number)
-        self.interface.phy.send_on_endpoint(0, b'\x00\x00')
+        self.phy.send_on_endpoint(0, b'\x00\x00')
 
     def set_interface(self, interface):
         self.interface = interface
+
+    def send(self, data):
+        self.phy.send_on_endpoint(self.number, data)
 
     # see Table 9-13 of USB 2.0 spec (pdf page 297)
     @mutable('endpoint_descriptor')
@@ -92,4 +99,6 @@ class USBEndpoint(USBBaseActor):
             self.max_packet_size,
             self.interval
         )
+        for cs in self.cs_endpoints:
+            d += cs.get_descriptor()
         return d
