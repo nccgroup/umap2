@@ -224,6 +224,8 @@ class USBDevice(USBBaseActor):
             self.error('handler entity type: %s' % (type(handler_entity)))
             self.error('handler entity: %s' % (handler_entity))
             self.error('handler_entity.request_handlers: %s' % (handler_entity.request_handlers))
+            for k in sorted(handler_entity.request_handlers.keys()):
+                self.error('0x%02x: %s' % (k, handler_entity.request_handlers[k]))
             self.error('invalid handler, stalling')
             self.phy.stall_ep0()
         try:
@@ -421,8 +423,8 @@ class USBDevice(USBBaseActor):
 
     # USB 2.0 specification, section 9.4.10 (p 288 of pdf)
     def handle_set_interface_request(self, req):
-        self.debug('Received SET_INTERFACE request')
         self.phy.send_on_endpoint(0, b'')
+        self.debug('Received SET_INTERFACE request')
 
     # USB 2.0 specification, section 9.4.11 (p 288 of pdf)
     def handle_synch_frame_request(self, req):
@@ -443,7 +445,7 @@ class USBDeviceRequest:
         self.raw_bytes = raw_bytes
 
     def __str__(self):
-        s = 'dir=%d, type=%d, rec=%d, req=%d, val=%d, idx=%d, len=%d' % (
+        s = 'dir=%#x, type=%#x, rec=%#x, req=%#x, val=%#x, idx=%#x, len=%#x' % (
             self.get_direction(),
             self.get_type(),
             self.get_recipient(),
