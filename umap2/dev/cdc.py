@@ -3,6 +3,7 @@ Contains class definitions to implement a USB CDC device.
 
 .. todo:: see here re-enpoints <http://janaxelson.com/usb_virtual_com_port.htm>_
 '''
+import struct
 from umap2.core.usb_class import USBClass
 from umap2.core.usb_device import USBDevice
 from umap2.core.usb_configuration import USBConfiguration
@@ -63,11 +64,11 @@ class USBCommunicationInterface(USBInterface):
             ],
             cs_interfaces=[
                 # Header Functional Descriptor
-                USBCSInterface(app, phy, [0x00, 0x1001], 2, 2, 1),
+                USBCSInterface('Header', app, phy, '\x00\x01\x01'),
                 # Call Management Functional Descriptor
-                USBCSInterface(app, phy, [0x01, bmCapabilities, bDataInterface], 2, 2, 1),
-                USBCSInterface(app, phy, [0x02, bmCapabilities], 2, 2, 1),
-                USBCSInterface(app, phy, [0x06, bControlInterface, bDataInterface], 2, 2, 1)
+                USBCSInterface('CMF', app, phy, struct.pack('BBB', 1, bmCapabilities, bDataInterface)),
+                USBCSInterface('ACMF1', app, phy, struct.pack('BB', 2, bmCapabilities)),
+                USBCSInterface('ACMF2', app, phy, struct.pack('BBB', 6, bControlInterface, bDataInterface)),
             ],
             device_class=USBCDCClass(app, phy)
         )
@@ -141,9 +142,9 @@ class USBCDCDevice(USBDevice):
             vendor_id=vid,
             product_id=pid,
             device_rev=rev,
-            manufacturer_string='Umap2',
-            product_string='Umap2CDC',
-            serial_number_string='UMAP2-XXX-CDC',
+            manufacturer_string='UMAP2 NetSolutions',
+            product_string='UMAP2 CDC-TRON',
+            serial_number_string='UMAP2-13337-CDC',
             configurations=[
                 USBConfiguration(
                     app=app,
