@@ -10,7 +10,6 @@ headset.
 However, it does not contain alternate settings for the interfaces
 and no HID interface (as we don't really need it here)
 '''
-from binascii import hexlify
 from six.moves.queue import Queue
 from umap2.core.usb_class import USBClass
 from umap2.core.usb_configuration import USBConfiguration
