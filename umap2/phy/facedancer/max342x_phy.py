@@ -181,6 +181,9 @@ class Max342xPhy(FacedancerApp):
         self.verbose("stalling endpoint 0")
         self.write_register(self.reg_ep_stalls, 0x23)
 
+    def run(self):
+        self.service_irqs()
+
     def service_irqs(self):
         while not self.stop:
             irq = self.read_register(self.reg_endpoint_irq)

@@ -122,7 +122,7 @@ class USBDevice(USBBaseActor):
         self.state = State.detached
 
     def run(self):
-        self.phy.service_irqs()
+        self.phy.run()
 
     def ack_status_stage(self):
         self.phy.ack_status_stage()
