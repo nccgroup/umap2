@@ -128,8 +128,7 @@ class USBDevice(USBBaseActor):
         self.phy.ack_status_stage()
 
     @mutable('device_descriptor')
-    def get_descriptor(self, n):
-
+    def get_descriptor(self, index=0, valid=False):
         bLength = 18
         bDescriptorType = 1
         bMaxPacketSize0 = self.max_packet_size_ep0

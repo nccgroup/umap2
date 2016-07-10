@@ -45,6 +45,7 @@ class Umap2FuzzApp(Umap2EmulationApp):
         self.check_connection_commands()
         if self.count == 0:
             self.send_heartbeat()
+        return False
 
     def send_heartbeat(self):
         heartbeat_file = '/tmp/umap_kitty/heartbeat'

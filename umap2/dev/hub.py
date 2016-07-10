@@ -121,7 +121,7 @@ class USBHubDevice(USBDevice):
                     interfaces=[
                         USBHubInterface(app, phy)
                     ],
-                    attributes=USBConfiguration.ATTR_REMOTE_WAKEUP | USBConfiguration.ATTR_SELF_POWERED,
+                    attributes=USBConfiguration.ATTR_SELF_POWERED,
                 )
             ],
         )

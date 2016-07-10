@@ -90,7 +90,7 @@ class USBInterface(USBBaseActor):
 
     # Table 9-12 of USB 2.0 spec (pdf page 296)
     @mutable('interface_descriptor')
-    def get_descriptor(self):
+    def get_descriptor(self, usb_type='fullspeed', valid=False):
 
         bLength = 9
         bDescriptorType = 4
@@ -118,9 +118,9 @@ class USBInterface(USBBaseActor):
                 d += desc
 
         for e in self.cs_interfaces:
-            d += e.get_descriptor()
+            d += e.get_descriptor(usb_type, valid)
 
         for e in self.endpoints:
-            d += e.get_descriptor()
+            d += e.get_descriptor(usb_type, valid)
 
         return d

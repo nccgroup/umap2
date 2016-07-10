@@ -35,7 +35,7 @@ class USBCSEndpoint(USBBaseActor):
 
     # see Table 9-13 of USB 2.0 spec (pdf page 297)
     @mutable('usbcsendpoint_descriptor')
-    def get_descriptor(self):
+    def get_descriptor(self, usb_type='fullspeed', valid=False):
         descriptor_type = DescriptorType.cs_endpoint
         length = len(self.cs_config) + 2
         response = struct.pack('BB', length, descriptor_type) + self.cs_config

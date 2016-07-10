@@ -80,7 +80,7 @@ class USBEndpoint(USBBaseActor):
 
     # see Table 9-13 of USB 2.0 spec (pdf page 297)
     @mutable('endpoint_descriptor')
-    def get_descriptor(self):
+    def get_descriptor(self, usb_type='fullspeed', valid=False):
         address = (self.number & 0x0f) | (self.direction << 7)
         attributes = (
             (self.transfer_type & 0x03) |
@@ -89,16 +89,21 @@ class USBEndpoint(USBBaseActor):
         )
         bLength = 7
         bDescriptorType = 5
-
+        wMaxPacketSize = self._get_max_packet_size(usb_type)
         d = struct.pack(
             '<BBBBHB',
             bLength,
             bDescriptorType,
             address,
             attributes,
-            self.max_packet_size,
+            wMaxPacketSize,
             self.interval
         )
         for cs in self.cs_endpoints:
             d += cs.get_descriptor()
         return d
+
+    def _get_max_packet_size(self, usb_type):
+        if usb_type == 'highspeed':
+            return 512
+        return self.max_packet_size

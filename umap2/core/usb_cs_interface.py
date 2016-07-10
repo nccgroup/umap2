@@ -53,7 +53,7 @@ class USBCSInterface(USBBaseActor):
         self.phy.stall_ep0()
         self.info('Received SET_INTERFACE request')
 
-    def get_descriptor(self):
+    def get_descriptor(self, usb_type='fullspeed', valid=False):
         descriptor_type = DescriptorType.cs_interface
         length = len(self.cs_config) + 2
         response = struct.pack('BB', length, descriptor_type) + self.cs_config

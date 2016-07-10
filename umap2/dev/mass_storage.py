@@ -424,7 +424,7 @@ class CommandBlockWrapper:
         as_array = bytearray(bytestring)
         self.signature = bytestring[0:4]
         self.tag = bytestring[4:8]
-        self.data_transfer_length = struct.unpack('<I', as_array[8:12])[0]
+        self.data_transfer_length = struct.unpack('<I', bytestring[8:12])[0]
         self.flags = as_array[12]
         self.lun = as_array[13] & 0x0f
         self.cb_length = as_array[14] & 0x1f

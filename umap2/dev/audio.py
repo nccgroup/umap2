@@ -148,8 +148,8 @@ class USBAudioStreamingInterface(USBInterface):
         )
 
     @mutable('audio_streaming_interface_descriptor')
-    def get_descriptor(self):
-        return super(USBAudioStreamingInterface, self).get_descriptor()
+    def get_descriptor(self, usb_type='fullspeed', valid=False):
+        return super(USBAudioStreamingInterface, self).get_descriptor(usb_type, valid)
 
 
 class USBAudioControlInterface(USBInterface):
@@ -169,8 +169,8 @@ class USBAudioControlInterface(USBInterface):
         )
 
     @mutable('audio_control_interface_descriptor')
-    def get_descriptor(self):
-        return super(USBAudioControlInterface, self).get_descriptor()
+    def get_descriptor(self, usb_type='fullspeed', valid=False):
+        return super(USBAudioControlInterface, self).get_descriptor(usb_type, valid)
 
 
 class USBAudioDevice(USBDevice):
@@ -197,7 +197,7 @@ class USBAudioDevice(USBDevice):
                 USBConfiguration(
                     app=app, phy=phy, index=1,
                     string='UMAP2 Audio Configuration',
-                    attributes=USBConfiguration.ATTR_REMOTE_WAKEUP,
+                    attributes=USBConfiguration.ATTR_BASE,
                     interfaces=[
                         # standard AC interface (4.3.1)
                         # At this point - with no endpoints

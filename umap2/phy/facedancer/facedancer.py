@@ -1,7 +1,6 @@
-# Facedancer.py
-#
-# Contains class definitions for Facedancer, FacedancerCommand, FacedancerApp,
-# and GoodFETMonitorApp.
+'''
+Facedancer protocol implementation, used by Max342xPhy
+'''
 import struct
 from binascii import hexlify
 import logging
@@ -13,8 +12,6 @@ class Facedancer(object):
         self.serialport = serialport
         self.logger = logging.getLogger('umap2')
         self.reset()
-        self.monitor_app = GoodFETMonitorApp(self)
-        self.monitor_app.announce_connected()
 
     def halt(self):
         self.serialport.setRTS(1)
@@ -90,90 +87,3 @@ class FacedancerCommand(object):
     def as_bytestring(self):
         b = struct.pack('<BBH', self.app, self.verb, len(self.data)) + self.data
         return b
-
-
-class FacedancerApp(object):
-    app_name = 'override this'
-    app_num = 0x00
-
-    def __init__(self, device):
-        self.device = device
-        self.logger = logging.getLogger('umap2')
-        self.init_commands()
-        self.info('initialized')
-
-    def init_commands(self):
-        pass
-
-    def enable(self):
-        for i in range(3):
-            self.device.writecmd(self.enable_app_cmd)
-            self.device.readcmd()
-
-        self.info('enabled')
-
-    def verbose(self, msg, *args, **kwargs):
-        self.logger.verbose('[%s] %s' % (self.app_name, msg), *args, **kwargs)
-
-    def debug(self, msg, *args, **kwargs):
-        self.logger.verbose('[%s] %s' % (self.app_name, msg), *args, **kwargs)
-
-    def info(self, msg, *args, **kwargs):
-        self.logger.info('[%s] %s' % (self.app_name, msg), *args, **kwargs)
-
-    def warning(self, msg, *args, **kwargs):
-        self.logger.warning('[%s] %s' % (self.app_name, msg), *args, **kwargs)
-
-    def error(self, msg, *args, **kwargs):
-        self.logger.error('[%s] %s' % (self.app_name, msg), *args, **kwargs)
-
-    def critical(self, msg, *args, **kwargs):
-        self.logger.critical('[%s] %s' % (self.app_name, msg), *args, **kwargs)
-
-    def always(self, msg, *args, **kwargs):
-        self.logger.always('[%s] %s' % (self.app_name, msg), *args, **kwargs)
-
-
-class GoodFETMonitorApp(FacedancerApp):
-    app_name = 'GoodFET monitor'
-    app_num = 0x00
-
-    def read_byte(self, addr):
-        d = [addr & 0xff, addr >> 8]
-        cmd = FacedancerCommand(0, 2, d)
-
-        self.device.writecmd(cmd)
-        resp = self.device.readcmd()
-
-        return struct.unpack('<B', resp.data[0:1])[0]
-
-    def get_infostring(self):
-        return struct.pack('<BB', self.read_byte(0xff0), self.read_byte(0xff1))
-
-    def get_clocking(self):
-        return struct.pack('<BB', self.read_byte(0x57), self.read_byte(0x56))
-
-    def print_info(self):
-        infostring = self.get_infostring()
-        clocking = self.get_clocking()
-
-        self.info('MCU: %s' % hexlify(infostring))
-        self.info('clocked at %s' % hexlify(clocking))
-
-    def list_apps(self):
-        cmd = FacedancerCommand(self.app_num, 0x82, b'0x0')
-        self.device.writecmd(cmd)
-
-        resp = self.device.readcmd()
-        self.info('build date: %s' % resp.data.decode('utf-8'))
-        self.info('firmware apps:')
-        while True:
-            resp = self.device.readcmd()
-            if len(resp.data) == 0:
-                break
-            self.info(resp.data.decode('utf-8'))
-
-    def announce_connected(self):
-        cmd = FacedancerCommand(self.app_num, 0xb1, b'')
-        self.device.writecmd(cmd)
-        self.device.readcmd()
