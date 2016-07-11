@@ -59,7 +59,7 @@ class USBPrinterInterface(USBInterface):
                 sync_type=USBEndpoint.sync_type_none,
                 usage_type=USBEndpoint.usage_type_data,
                 max_packet_size=0x40,      # max packet size
-                interval=0xff,          # polling interval, see USB 2.0 spec Table 9-13
+                interval=0x80,          # polling interval, see USB 2.0 spec Table 9-13
                 handler=self.handle_data_available    # handler function
             ),
             USBEndpoint(
@@ -86,7 +86,7 @@ class USBPrinterInterface(USBInterface):
                 sync_type=USBEndpoint.sync_type_none,
                 usage_type=USBEndpoint.usage_type_data,
                 max_packet_size=0x40,      # max packet size
-                interval=0xff,          # polling interval, see USB 2.0 spec Table 9-13
+                interval=0x80,          # polling interval, see USB 2.0 spec Table 9-13
                 handler=self.handle_data_available    # handler function
             ),
             USBEndpoint(
