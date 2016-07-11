@@ -65,6 +65,18 @@ MTP
    at the moment, but can be downloaded and installed from here:
    https://github.com/BinyaminSharet/Mtp
 
+Hardware
+--------
+
+- `Facedancer <http://goodfet.sourceforge.net/hardware/facedancer21/>`_
+  is the recommended hardware for Umap2.
+  Umap2 was developed based on it, and you'll get the most support with it.
+- **GadgetFS** is partially supported (only BeagleBone Black at the moment).
+  This support is very experimental (even more than the rest of Umap2)
+  and limited.
+  If you are interested, read the **gadget/README.rst** for more information.
+
+
 Usage
 -----
 
@@ -145,4 +157,3 @@ Host OS Detection
 ~~~~~~~~~~~~~~~~~
 
 TBD
-
