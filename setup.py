@@ -9,7 +9,7 @@ def read(fname):
 DESCRIPTION = read('README.rst')
 setup(
     name='umap2',
-    version='2.0.0a1',
+    version='2.0.0a2',
     description='USB Host Security Assessment Tool - Revision 2',
     long_description=DESCRIPTION,
     author='NCCGroup & Cisco SAS team',
