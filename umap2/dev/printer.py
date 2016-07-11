@@ -80,26 +80,26 @@ class USBPrinterInterface(USBInterface):
             USBEndpoint(
                 app=app,
                 phy=phy,
-                number=1,          # endpoint address
+                number=1,
                 direction=USBEndpoint.direction_out,
                 transfer_type=USBEndpoint.transfer_type_bulk,
                 sync_type=USBEndpoint.sync_type_none,
                 usage_type=USBEndpoint.usage_type_data,
-                max_packet_size=0x40,      # max packet size
-                interval=0x80,          # polling interval, see USB 2.0 spec Table 9-13
-                handler=self.handle_data_available    # handler function
+                max_packet_size=0x40,
+                interval=0x80,
+                handler=self.handle_data_available
             ),
             USBEndpoint(
                 app=app,
                 phy=phy,
-                number=2,          # endpoint address
+                number=2,
                 direction=USBEndpoint.direction_in,
                 transfer_type=USBEndpoint.transfer_type_bulk,
                 sync_type=USBEndpoint.sync_type_none,
                 usage_type=USBEndpoint.usage_type_data,
-                max_packet_size=0x40,      # max packet size
-                interval=0,          # polling interval, see USB 2.0 spec Table 9-13
-                handler=None        # handler function
+                max_packet_size=0x40,
+                interval=0,
+                handler=None
             )
         ]
         if int_num == 0:
@@ -111,12 +111,12 @@ class USBPrinterInterface(USBInterface):
         super(USBPrinterInterface, self).__init__(
             app=app,
             phy=phy,
-            interface_number=int_num,          # interface number
-            interface_alternate=0,          # alternate setting
-            interface_class=usbclass,     # interface class
-            interface_subclass=sub,          # subclass
-            interface_protocol=proto,       # protocol
-            interface_string_index=0,          # string index
+            interface_number=int_num,
+            interface_alternate=0,
+            interface_class=usbclass,
+            interface_subclass=sub,
+            interface_protocol=proto,
+            interface_string_index=0,
             endpoints=endpoints,
             device_class=USBPrinterClass(app, phy),
         )
