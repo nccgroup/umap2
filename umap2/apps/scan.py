@@ -63,6 +63,7 @@ class Umap2ScanApp(Umap2App):
             self.logger.always('Found %s supported device(s):' % (len(supported)))
             for i, device_name in enumerate(supported):
                 self.logger.always('%d. %s' % (i + 1, device_name))
+        self.logger.warning('Note: printer is not tested at the moment')
 
     def packet_processed(self):
         # if self.current_usb_function_supported:
