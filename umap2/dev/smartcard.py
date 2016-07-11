@@ -295,7 +295,7 @@ class USBSmartcardInterface(USBInterface):
 
     @mutable('smartcard_SetParameters_response')
     def handle_PcToRdr_SetParameters(self, slot, seq, data):
-        self.proto = data[7]
+        self.proto = struct.unpack('B', data[7:8])[0]
         if self.proto == 0:
             self.abProtocolDataStructure = data[10:15]
         elif self.proto == 1:
