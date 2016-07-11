@@ -1,6 +1,9 @@
 '''
 USB Class definitions for FTDI FT232 Serial (UART) device
 '''
+import struct
+from binascii import hexlify
+from six.moves.queue import Queue
 from umap2.core.usb_device import USBDevice
 from umap2.core.usb_configuration import USBConfiguration
 from umap2.core.usb_interface import USBInterface
@@ -8,7 +11,6 @@ from umap2.core.usb_endpoint import USBEndpoint
 from umap2.core.usb_vendor import USBVendor
 from umap2.core.usb_class import USBClass
 from umap2.fuzz.helpers import mutable
-import struct
 
 
 class USBFtdiVendor(USBVendor):
@@ -138,17 +140,20 @@ class USBFtdiInterface(USBInterface):
                     usage_type=USBEndpoint.usage_type_data,
                     max_packet_size=0x40,
                     interval=0,
-                    handler=None  # at this point, we don't send data to the host
+                    handler=self.handle_ep3_buffer_available  # at this point, we don't send data to the host
                 )
             ],
         )
+        self.txq = Queue()
 
     def handle_data_available(self, data):
-        st = data[1:]
-        self.debug('received string: %s' % st)
-        st = st.replace(b'\r', b'\r\n')
-        reply = b'\x01\x00' + st
-        self.send_on_endpoint(3, reply)
+        self.debug('received string (%d): %s' % (len(data), data))
+        reply = b'\x01\x00' + data
+        self.txq.put(reply)
+
+    def handle_ep3_buffer_available(self):
+        if not self.txq.empty():
+            self.send_on_endpoint(3, self.txq.get())
 
 
 class USBFtdiDevice(USBDevice):
