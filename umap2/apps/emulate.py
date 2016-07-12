@@ -3,13 +3,15 @@
 Emulate a USB device
 
 Usage:
-    umap2emulate -P=PHY_INFO -C=DEVICE_CLASS [-q] [-v ...]
+    umap2emulate -P=PHY_INFO -C=DEVICE_CLASS [-q] [--vid=VID] [--pid=PID] [-v ...]
 
 Options:
     -P --phy PHY_INFO           physical layer info, see list below
     -C --class DEVICE_CLASS     class of the device or path to python file with device class
     -v --verbose                verbosity level
     -q --quiet                  quiet mode. only print warning/error messages
+    --vid VID                   override vendor ID
+    --pid PID                   override product ID
 
 Physical layer:
     fd:<serial_port>        use facedancer connected to given serial port
