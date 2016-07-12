@@ -1,6 +1,7 @@
 import struct
 import select
 import os
+import sys
 from binascii import hexlify
 import threading
 
@@ -53,14 +54,28 @@ class GadgetFsPhy(PhyInterface):
     Physical layer based on GadgetFS
     '''
 
+    control_filenames = [
+        "net2280",
+        "gfs_udc",
+        "pxa2xx_udc",
+        "goku_udc",
+        "sh_udc",
+        "omap_udc",
+        "musb-hdrc",
+        "at91_udc",
+        "lh740x_udc",
+        "atmel_usba_udc",
+    ]
+
     event_size = 12
     event_type_off = 8
 
-    def __init__(self, app):
+    def __init__(self, app, gadgetfs_dir='/dev/gadget'):
         super(GadgetFsPhy, self).__init__(app, 'GadgetFsPhy')
-        self.gadgetfs_dir = '/dev/gadget'
+        if sys.platform not in ['linux', 'linux2']:
+            raise Exception('GadgetFsPhy is only supported on Linux')
+        self.gadgetfs_dir = gadgetfs_dir
         self.control_fd = None
-        self.out_ep_fds = []
         self.in_ep_fds = []
         self.fd_ep_mapping = {}
         self.ep_fd_mapping = {}
@@ -68,16 +83,25 @@ class GadgetFsPhy(PhyInterface):
         self.configured = False
         # we need to use separate thread for each endpoint ...
         self.out_ep_threads = {}
+        
 
     def _get_control_filename(self):
         '''
-        Get the control filename, depending on the USB driver
+        Get the control filename, depending on the USB driver.
+        If there's more than one, the first match (alphabetically)
+        will be returned.
 
-        :return: control filename
-
-        .. todo: autodetect
+        :return: control (EP0) filename
+        :raises: exception if no control file found
         '''
-        return '%s/musb-hdrc' % (self.gadgetfs_dir)
+        for f in os.listdir(self.gadgetfs_dir):
+            if f in GadgetFsPhy.control_filenames:
+                full_path = os.path.join(self.gadgetfs_dir, f)
+                self.info('Found a control file: %s' % (full_path))
+                return full_path
+        raise Exception(
+            'No known control file found in %s. Is the gadgetfs driver loaded?' % (self.gadgetfs_dir)
+        )
 
     def _is_high_speed(self):
         '''
@@ -89,9 +113,8 @@ class GadgetFsPhy(PhyInterface):
         super(GadgetFsPhy, self).connect(device)
         self.control_fd = os.open(self.control_filename, os.O_RDWR | os.O_NONBLOCK)
         self.fd_ep_mapping[self.control_fd] = 0
-        self.out_ep_fds.append(self.control_fd)
         self.ep_fd_mapping[0] = self.control_fd
-        self.debug('Opened control file %s (%d)' % (self.control_filename, self.control_fd))
+        self.debug('Opened control file: %s' % (self.control_filename))
         set_highspeed_endpoints(self.connected_device)
         buff = struct.pack('I', Tags.INIT_DEVICE)
         for conf in self.connected_device.configurations:
@@ -104,6 +127,7 @@ class GadgetFsPhy(PhyInterface):
         self.debug('Write completed')
 
     def disconnect(self):
+        self.control_fd = None
         ep_nums = self.out_ep_threads.keys()
         for ep_num in ep_nums:
             self.out_ep_threads[ep_num].stop_evt.set()
@@ -114,8 +138,6 @@ class GadgetFsPhy(PhyInterface):
             self.debug('Closed fd: %d' % (fd))
             del self.fd_ep_mapping[fd]
         self.ep_fd_mapping = {}
-        self.control_fd = None
-        self.out_ep_fds = []
         self.in_ep_fds = []
         return super(GadgetFsPhy, self).disconnect()
 
@@ -123,19 +145,11 @@ class GadgetFsPhy(PhyInterface):
         self.debug('Started run loop')
         self.stop = False
         while not self.stop:
-            # EP0 read, and IN endpoints write thread.
-            ready_out_eps, _, _ = select.select(self.out_ep_fds, self.in_ep_fds, [], 0.001)
-            if ready_out_eps:
-                self.debug('Select returned (%d)' % (len(ready_out_eps)))
+            # EP0 read and IN endpoints write thread.
+            ready_out_eps, _, _ = select.select([self.control_fd], [], [], 0.001)
             for ep_fd in ready_out_eps:
                 ep_num = self.fd_ep_mapping[ep_fd]
-                if ep_num == 0:
-                    self._handle_ep0()
-                else:
-                    self.debug('About to read from EP %d' % (ep_num))
-                    read_data = os.read(ep_fd, 0x40)
-                    self.debug('Read %#x bytes from EP %d' % (len(read_data), ep_num))
-                    self.connected_device.handle_data_available(ep_num, read_data)
+                self._handle_ep0()
                 if self.app.packet_processed():
                     self.stop = True
             for ep_fd in self.in_ep_fds:
@@ -220,14 +234,8 @@ class GadgetFsPhy(PhyInterface):
                 self._setup_endpoint(ep)
 
     def _setup_endpoint(self, ep):
+        ep_fd = self._get_endpoint_fd(ep)
         ep_num = ep.number
-        ep_dir = ep.direction
-        ep_filename = '%s/ep%d%s' % (
-            self.gadgetfs_dir,
-            ep_num,
-            'out' if ep_dir == 0 else 'in'
-        )
-        ep_fd = os.open(ep_filename, os.O_RDWR | os.O_NONBLOCK)
         self.fd_ep_mapping[ep_fd] = ep_num
         self.ep_fd_mapping[ep_num] = ep_fd
         buff = struct.pack('I', Tags.INIT_EP)
@@ -237,14 +245,31 @@ class GadgetFsPhy(PhyInterface):
         descs = filter_descriptors(descs, DescriptorType.endpoint)
         buff += descs
         os.write(ep_fd, buff)
-        self.debug('ep: %d dir: %d file: %s fd: %d' % (ep_num, ep_dir, ep_filename, ep_fd))
-        if ep_dir == 0:
+        if ep.direction == 0:
             self.out_ep_threads[ep_num] = OutEpThread(self, ep_fd, ep)
             self.out_ep_threads[ep_num].start()
-            # self.out_ep_fds.append(ep_fd)
         else:
             self.in_ep_fds.append(ep_fd)
 
+    def _get_endpoint_fd(self, ep):
+        '''
+        :param ep: USBEndpoint object
+
+        :return: endpoint file descriptor
+        :raises Exception: if no endpoint file found, or failed to open
+
+        .. todo: detect transfer-type specific endpoint files
+        '''
+        num = ep.number
+        s_dir = 'out' if ep.direction == 0 else 'in'
+        filename = 'ep%d%s' % (num, s_dir)
+        path = os.path.join(self.gadgetfs_dir, filename)
+        fd = os.open(path, os.O_RDWR | os.O_NONBLOCK)
+        self.debug('Opened endpoint %d' % (num))
+        self.debug('ep: %d dir: %s file: %s fd: %d' % (num, s_dir, filename, fd))
+        return fd
+
+        
     def _handle_ep0_suspend(self, event):
         self.debug('EP0 event type SUSPEND(%#x)' % (Events.SUSPEND))
 
@@ -267,7 +292,6 @@ class OutEpThread(threading.Thread):
         first = True
         while not self.stop_evt.isSet():
             try:
-                # self.read_size = 8
                 self.phy.debug('About to read from EP%d' % (self.ep.number))
                 buff = os.read(self.fd, self.read_size)
                 self.phy.debug('Done reading from EP%d' % (self.ep.number))
