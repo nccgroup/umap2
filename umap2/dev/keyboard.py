@@ -3,6 +3,7 @@
 # Contains class definitions to implement a USB keyboard.
 
 import struct
+import time
 from umap2.core.usb import DescriptorType
 from umap2.core.usb_class import USBClass
 from umap2.core.usb_device import USBDevice
@@ -86,10 +87,10 @@ class USBKeyboardInterface(USBInterface):
 
         empty_preamble = [0x00] * 10
         text = [0x0f, 0x00, 0x16, 0x00, 0x28, 0x00]
-        # text = []
 
         self.keys = [chr(x) for x in empty_preamble + text]
         self.call_count = 0
+        self.first_call = None
 
     @mutable('hid_descriptor')
     def get_hid_descriptor(self, *args, **kwargs):
@@ -115,6 +116,7 @@ class USBKeyboardInterface(USBInterface):
 
     @mutable('hid_report_descriptor')
     def get_report_descriptor(self, *args, **kwargs):
+        self.first_call = None
         usage_page_generic_desktop_controls = b'\x05\x01'
         # usage_page_generic_desktop_controls = b'\xb1\x01'
         usage_keyboard = b'\x09\x06'
@@ -170,15 +172,15 @@ class USBKeyboardInterface(USBInterface):
         # this is really ugly, but sometimes the host expects
         # (during initialization) to get the report on ep0 and
         # ignores the actual ep (2 in this case), we'll just
-        # wait for a little bit... (see section 7.2.1 in HID spec)
+        # wait for a little while... (see section 7.2.1 in HID spec)
         #
-        if self.call_count > 100:
+        if self.first_call is None:
+            self.first_call = time.time()
+        if time.time() - self.first_call > 2:
             self.usb_function_supported()
             if self.keys:
                 letter = self.keys.pop(0)
                 self.type_letter(letter)
-        else:
-            self.call_count += 1
 
     def type_letter(self, letter, modifiers=0):
         data = struct.pack('<BBB', 0, 0, ord(letter))
