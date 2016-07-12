@@ -44,12 +44,15 @@ def log_stage(stage):
 def mutable(stage, silent=False):
     def wrap_f(func):
         def wrapper(self, *args, **kwargs):
-            log_stage(stage)
+            response = None
+            valid_req = kwargs.get('valid', False)
             info = self.info if not silent else self.debug
-            session_data = self.get_session_data(stage)
-            data = kwargs.get('fuzzing_data', {})
-            data.update(session_data)
-            response = self.get_mutation(stage=stage, data=data)
+            if not valid_req:
+                log_stage(stage)
+                session_data = self.get_session_data(stage)
+                data = kwargs.get('fuzzing_data', {})
+                data.update(session_data)
+                response = self.get_mutation(stage=stage, data=data)
             try:
                 if response is not None:
                     if not silent:

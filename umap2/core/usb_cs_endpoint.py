@@ -1,7 +1,8 @@
-# USBCSEndpoint.py
-#
-# Contains class definition for USBCSEndpoint.
+'''
+Class-Specific endpoint (used in USB Audio)
+'''
 import struct
+from umap2.core.usb import DescriptorType
 from umap2.core.usb_base import USBBaseActor
 from umap2.fuzz.helpers import mutable
 
@@ -10,15 +11,16 @@ class USBCSEndpoint(USBBaseActor):
 
     name = 'CSEndpoint'
 
-    def __init__(self, app, phy, cs_config):
+    def __init__(self, name, app, phy, cs_config):
         '''
+        :param name: Name of the endpoint
         :param app: Umap2 application
         :param phy: Physical connection
-        :param cs_config: containing class specific config
+        :param cs_config: Containing class specific config
         '''
         super(USBCSEndpoint, self).__init__(app, phy)
+        self.name = name
         self.cs_config = cs_config
-        self.number = self.cs_config[1]
         self.interface = None
         self.device_class = None
         self.request_handlers = {
@@ -33,19 +35,8 @@ class USBCSEndpoint(USBBaseActor):
 
     # see Table 9-13 of USB 2.0 spec (pdf page 297)
     @mutable('usbcsendpoint_descriptor')
-    def get_descriptor(self):
-        if self.cs_config[0] == 0x01:  # EP_GENERAL
-            bLength = 7
-            bDescriptorType = 37  # CS_ENDPOINT
-            bDescriptorSubtype = 0x01  # EP_GENERAL
-            bmAttributes, bLockDelayUnits, wLockDelay = struct.unpack('<BBB', self.cs_config[2:5])
-        d = struct.pack(
-            '<BBBBBH',
-            bLength,
-            bDescriptorType,
-            bDescriptorSubtype,
-            bmAttributes,
-            bLockDelayUnits,
-            wLockDelay,
-        )
-        return d
+    def get_descriptor(self, usb_type='fullspeed', valid=False):
+        descriptor_type = DescriptorType.cs_endpoint
+        length = len(self.cs_config) + 2
+        response = struct.pack('BB', length, descriptor_type) + self.cs_config
+        return response

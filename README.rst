@@ -65,6 +65,18 @@ MTP
    at the moment, but can be downloaded and installed from here:
    https://github.com/BinyaminSharet/Mtp
 
+Hardware
+--------
+
+- `Facedancer <http://goodfet.sourceforge.net/hardware/facedancer21/>`_
+  is the recommended hardware for Umap2.
+  Umap2 was developed based on it, and you'll get the most support with it.
+- **GadgetFS** is partially supported (only BeagleBone Black at the moment).
+  This support is very experimental (even more than the rest of Umap2)
+  and limited.
+  If you are interested, read the **gadget/README.rst** for more information.
+
+
 Usage
 -----
 
@@ -131,8 +143,17 @@ which might be unified into a single script in the future.
 
 After stage 3 is performed, the fuzzing session will begin.
 
+Note About MTP fuzzing
+++++++++++++++++++++++
+
+While umap2 may be used to emulate and discover MTP devices
+(see "Soft dependencies" section of this README),
+it does not fuzz the MTP layer at this point.
+In order to fuzz the MTP layer,
+you can use the fuzzer embedded in the MTP library.
+We plan to support MTP fuzzing directly from umap2 in future releases.
+
 Host OS Detection
 ~~~~~~~~~~~~~~~~~
 
 TBD
-

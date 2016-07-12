@@ -3,6 +3,12 @@
 
     Something to check all over the place - little/big endianess of data
     It is better now (6/6/2016) but still needs improvements
+
+.. todo::
+
+    it seems that our current phy, facedancer, is very slow,
+    so we are only able to emulate very small disk images (~3M).
+    Take that into consideration before using it ...
 '''
 from mmap import mmap
 import os
@@ -37,6 +43,7 @@ class ScsiCmds(object):
     VERIFY_10 = 0x2F
     SYNCHRONIZE_CACHE = 0x35
     MODE_SENSE_10 = 0x5A
+    READ_CAPACITY_16 = 0x9e
 
 
 class ScsiSenseKeys(object):
@@ -59,6 +66,10 @@ class ScsiSenseKeys(object):
 class USBMassStorageClass(USBClass):
     name = 'MassStorageClass'
 
+    def __init__(self, app, phy, scsi_device):
+        super(USBMassStorageClass, self).__init__(app, phy)
+        self.scsi_device = scsi_device
+
     def setup_local_handlers(self):
         self.local_handlers = {
             0xFF: self.handle_bulk_only_mass_storage_reset,
@@ -67,6 +78,7 @@ class USBMassStorageClass(USBClass):
 
     @mutable('msc_bulk_only_mass_storage_reset_response')
     def handle_bulk_only_mass_storage_reset(self, req):
+        self.scsi_device.handle_reset()
         return b''
 
     @mutable('msc_get_max_lun_response')
@@ -79,29 +91,39 @@ class DiskImage:
         self.filename = filename
         self.block_size = block_size
 
-        statinfo = os.stat(self.filename)
-        self.size = statinfo.st_size
-
-        self.file = open(self.filename, 'r+b')
-        self.image = mmap(self.file.fileno(), 0)
+        try:
+            statinfo = os.stat(self.filename)
+            self.size = statinfo.st_size
+            self.file = open(self.filename, 'r+b')
+            self.image = mmap(self.file.fileno(), 0)
+        except:
+            print('''
+----------------------------------------------------------------------
+No disk image named '%s' was found.
+You can use the disk image from umap2/data/fat32.3M.stick.img
+as a small disk image (extract it using `tar xvf fat32.3M.stick.img`)
+----------------------------------------------------------------------
+            ''' % (filename))
+            raise Exception('No file named %s found.' % (filename))
 
     def close(self):
         self.image.flush()
         self.image.close()
 
     def get_sector_count(self):
-        return int(self.size / self.block_size) - 1
+        return (self.size // self.block_size) - 1
 
     def get_sector_data(self, address):
         block_start = address * self.block_size
-        block_end = (address + 1) * self.block_size   # slices are NON-inclusive
-
+        block_end = block_start + self.block_size   # slices are NON-inclusive
         return self.image[block_start:block_end]
 
     def put_sector_data(self, address, data):
         block_start = address * self.block_size
         block_end = (address + 1) * self.block_size   # slices are NON-inclusive
 
+        pad_len = (self.block_size - (len(data) % self.block_size)) % self.block_size
+        data += '\x00' * pad_len
         self.image[block_start:block_end] = data[:self.block_size]
         self.image.flush()
 
@@ -115,7 +137,7 @@ class ScsiDevice(USBBaseActor):
     '''
     Implementation of subset of the SCSI protocol
     '''
-    name = 'SCSI Stack'
+    name = 'ScsiDevice'
 
     def __init__(self, app, disk_image):
         super(ScsiDevice, self).__init__(app, None)
@@ -136,18 +158,26 @@ class ScsiDevice(USBBaseActor):
             ScsiCmds.MODE_SENSE_10: self.handle_mode_sense_10,
             ScsiCmds.READ_FORMAT_CAPACITIES: self.handle_read_format_capacities,
             ScsiCmds.SYNCHRONIZE_CACHE: self.handle_synchronize_cache,
+            ScsiCmds.READ_CAPACITY_16: self.handle_read_capacity_16,
         }
-        self.tx = Queue()
-        self.rx = Queue()
+        self.is_write_in_progress = False
+        self.handle_reset()
         self.stop_event = Event()
         self.thread = Thread(target=self.handle_data_loop)
         self.thread.daemon = True
         self.thread.start()
+
+    def handle_reset(self):
+        self.debug('handling reset')
+        if self.is_write_in_progress and self.write_data:
+            self.disk_image.put_sector_data(self.write_base_lba, self.write_data)
         self.is_write_in_progress = False
         self.write_cbw = None
         self.write_base_lba = 0
         self.write_length = 0
         self.write_data = b''
+        self.tx = Queue()
+        self.rx = Queue()
 
     def stop(self):
         self.stop_event.set()
@@ -173,16 +203,17 @@ class ScsiDevice(USBBaseActor):
                         self.tx.put(resp)
                     self.tx.put(scsi_status(cbw, 0))
                 except Exception as ex:
-                    self.warning('exception while proceeing opcode %#x' % (opcode))
+                    self.warning('exception while processing opcode %#x' % (opcode))
                     self.warning(ex)
                     self.tx.put(scsi_status(cbw, 2))
             else:
                 raise Exception('No handler for opcode %#x' % (opcode))
 
     def handle_write_data(self, data):
-        self.debug('got %#x bytes of SCSI write data' % (len(data)))
         self.write_data += data
+        self.debug('Got %#x bytes of SCSI write data, written so far: %#x' % (len(data), len(self.write_data)))
         if len(self.write_data) >= self.write_length:
+            self.info('Got all write data')
             # done writing
             self.disk_image.put_sector_data(self.write_base_lba, self.write_data)
             self.is_write_in_progress = False
@@ -197,8 +228,8 @@ class ScsiDevice(USBBaseActor):
         version = 0x00
         response_data_format = 0x01
         config = (0x00, 0x00, 0x00)
-        vendor_id = b'PNY     '
-        product_id = b'USB 2.0 FD      '
+        vendor_id = b'MBYDCOR '
+        product_id = b'UMAP2 DISK IMAG '
         product_revision_level = b'8.02'
         part1 = struct.pack('BBBB', peripheral, RMB, version, response_data_format)
         part2 = struct.pack('BBB', *config) + vendor_id + product_id + product_revision_level
@@ -238,11 +269,20 @@ class ScsiDevice(USBBaseActor):
 
     @mutable('scsi_read_capacity_10_response')
     def handle_read_capacity_10(self, cbw):
-        self.debug('SCSI Read Capacity, data: %s' % hexlify(cbw.cb[1:]))
+        # .. todo: is the length correct?
+        self.debug('SCSI Read Capacity(10), data: %s' % hexlify(cbw.cb[1:]))
         lastlba = self.disk_image.get_sector_count()
-        logical_block_address = struct.pack('>I', lastlba)
-        length = 0x00000200
-        response = logical_block_address + struct.pack('>I', length)
+        length = self.disk_image.block_size
+        response = struct.pack('>II', lastlba, length)
+        return response
+
+    @mutable('scsi_read_capacity_16_response')
+    def handle_read_capacity_16(self, cbw):
+        # .. todo: is the length correct?
+        self.debug('SCSI Read Capacity(16), data: %s' % hexlify(cbw.cb[1:]))
+        lastlba = self.disk_image.get_sector_count()
+        length = self.disk_image.block_size
+        response = struct.pack('>BBQIBB', 0x9e, 0x10, lastlba, length, 0x00, 0x00)
         return response
 
     @mutable('scsi_send_diagnostic_response')
@@ -266,11 +306,11 @@ class ScsiDevice(USBBaseActor):
         self.write_cbw = cbw
         self.write_base_lba = base_lba
         self.write_length = num_blocks * self.disk_image.block_size
+        self.debug('SCSI Write (10) total expected length: %#x' % (self.write_length))
         self.is_write_in_progress = True
 
     def handle_read_10(self, cbw):
-        base_lba = struct.unpack('>I', cbw.cb[2:6])[0]
-        num_blocks = struct.unpack('>H', cbw.cb[7:9])[0]
+        base_lba, group, num_blocks = struct.unpack('>IBH', cbw.cb[2:9])
         self.debug('SCSI Read (10), lba %#x + %#x block(s)' % (base_lba, num_blocks))
         for block_num in range(num_blocks):
             data = self.disk_image.get_sector_data(base_lba + block_num)
@@ -288,44 +328,80 @@ class ScsiDevice(USBBaseActor):
     def handle_verify_10(self, cbw):
         raise NotImplementedError('yet...')
 
-    def handle_scsi_mode_sense(self, cbw):
-        page = cbw.cb[2] & 0x3f
+    def _build_page0_report(self, page, data):
+        report = struct.pack('BB', page, len(data))
+        report += data
+        return report
 
-        self.debug('SCSI Mode Sense, page code 0x%02x' % page)
+    def _build_subpage_report(self, page, subpage, data):
+        report = struct.pack('>BBH', page | 0x40, subpage, len(data))
+        report += data
+        return report
 
-        if page == 0x1c:
-            medium_type = 0x00
-            device_specific_param = 0x00
-            block_descriptor_len = 0x00
-            mode_page_1c = b'\x1c\x06\x00\x05\x00\x00\x00\x00'
-            body = struct.pack('BBB', medium_type, device_specific_param, block_descriptor_len)
-            body += mode_page_1c
-            length = struct.pack('<B', len(body))
-            response = length + body
+    def _report_header(self, mode_type, mode_data_length):
+        # Based on seagate 100293068h.pdf
+        medium_type = 0x00
+        flags = 0x00
+        block_descriptor_len = 0x00
+        if mode_type == 6:  # Table 292
+            header_data = struct.pack('>3B', medium_type, flags, block_descriptor_len)
+            total_len = struct.pack('B', len(header_data) + mode_data_length)
+        else:  # Table 293
+            longlba = 0x00
+            header_data = struct.pack('>BBBBH', medium_type, flags, longlba, 0, block_descriptor_len)
+            total_len = struct.pack('>H', len(header_data) + mode_data_length)
+        return total_len + header_data
 
-        elif page == 0x3f:
-            length = 0x45  # .. todo:: this seems awefully wrong
-            medium_type = 0x00
-            device_specific_param = 0x00
-            block_descriptor_len = 0x08
-            mode_page = 0x00000000
-            response = struct.pack('<BBBBI', length, medium_type, device_specific_param, block_descriptor_len, mode_page)
+    def _build_page_report(self, page, subpage, data):
+        if subpage is None:
+            report = self._build_page0_report(page, data)
         else:
-            length = 0x07
-            medium_type = 0x00
-            device_specific_param = 0x00
-            block_descriptor_len = 0x00
-            mode_page = 0x00000000
-            response = struct.pack('<BBBBI', length, medium_type, device_specific_param, block_descriptor_len, mode_page)
-        return response
+            report = self._build_subpage_report(page, subpage, data)
+        return report
+
+    def handle_scsi_mode_sense(self, mode_type, page, subpage, alloc_len, ctrl, with_header=True):
+        # .. todo: implement response for unsupported pages
+        self.debug('SCSI Mode Sense(%d), page %#x subpage %#x' % (mode_type, page, subpage))
+        report = None
+        # wish there was a switch :(
+        if page == 0x1c:
+            # case: informational exceptions control (table 314)
+            if subpage == 0x00:
+                data = struct.pack('>BBII', 0x00, 0x05, 0x00, 0x00)
+                report = self._build_page_report(page, 0x00, data)
+            # case: background control (table 300)
+            elif subpage == 0x01:
+                data = struct.pack('>BBHHHHH', 0x05, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00)
+                report = self._build_page_report(page, subpage, data)
+            elif subpage == 0xff:
+                report = self.handle_scsi_mode_sense(mode_type, 0x1c, 0x00, alloc_len, ctrl, False)
+                report += self.handle_scsi_mode_sense(mode_type, 0x1c, 0x01, alloc_len, ctrl, False)
+        # case: all pages
+        elif page == 0x3f:
+            # return all pages that we got ...
+            report = self.handle_scsi_mode_sense(mode_type, 0x1c, 0xff, alloc_len, ctrl, False)
+        if report is None:
+            # default behaviour, taken from previous implementation
+            # this should probably be changed ...
+            report = '\x07\x00\x00\x00\x00\x00\x00\x00'
+        if with_header:
+            self.debug('SCSI mode sense (%d) - adding header' % (mode_type))
+            report = self._report_header(mode_type, len(report)) + report
+        return report
 
     @mutable('scsi_mode_sense_6_response')
     def handle_mode_sense_6(self, cbw):
-        return self.handle_scsi_mode_sense(cbw)
+        # .. todo: DBD, PC
+        page, subpage, alloc_len, control = struct.unpack('>4B', cbw.cb[2:6])
+        page &= 0x3f
+        return self.handle_scsi_mode_sense(6, page, subpage, alloc_len, control)
 
     @mutable('scsi_mode_sense_10_response')
     def handle_mode_sense_10(self, cbw):
-        return self.handle_scsi_mode_sense(cbw)
+        # .. todo: LLBA, DBD, PC
+        page, subpage, _, _, _, alloc_len, control = struct.unpack('>5BHB', cbw.cb[2:10])
+        page &= 0x3f
+        return self.handle_scsi_mode_sense(10, page, subpage, alloc_len, control)
 
     @mutable('scsi_read_format_capacities')
     def handle_read_format_capacities(self, cbw):
@@ -334,7 +410,7 @@ class ScsiDevice(USBBaseActor):
         response = struct.pack('>I', 8)
         num_sectors = 0x1000
         reserved = 0x1000
-        sector_size = 0x200
+        sector_size = self.disk_image.block_size
         response += struct.pack('>IHH', num_sectors, reserved, sector_size)
         return response
 
@@ -348,7 +424,7 @@ class CommandBlockWrapper:
         as_array = bytearray(bytestring)
         self.signature = bytestring[0:4]
         self.tag = bytestring[4:8]
-        self.data_transfer_length = struct.unpack('<I', as_array[8:12])[0]
+        self.data_transfer_length = struct.unpack('<I', bytestring[8:12])[0]
         self.flags = as_array[12]
         self.lun = as_array[13] & 0x0f
         self.cb_length = as_array[14] & 0x1f
@@ -408,19 +484,8 @@ class USBMassStorageInterface(USBInterface):
                     interval=0,
                     handler=self.handle_buffer_available
                 ),
-                # USBEndpoint(
-                #     app=app,
-                #     number=2,
-                #     direction=USBEndpoint.direction_in,
-                #     transfer_type=USBEndpoint.transfer_type_interrupt,
-                #     sync_type=USBEndpoint.sync_type_none,
-                #     usage_type=USBEndpoint.usage_type_data,
-                #     max_packet_size=0x40,
-                #     interval=0,
-                #     handler=None
-                # ),
             ],
-            device_class=USBMassStorageClass(app, phy),
+            device_class=USBMassStorageClass(app, phy, scsi_device),
         )
         self.scsi_device = scsi_device
 
@@ -444,7 +509,7 @@ class USBMassStorageDevice(USBDevice):
         disk_image_filename='stick.img'
     ):
         self.disk_image = DiskImage(disk_image_filename, 0x200)
-        self.scsi_device = ScsiDevice(app, DiskImage(disk_image_filename, 0x200))
+        self.scsi_device = ScsiDevice(app, self.disk_image)
 
         super(USBMassStorageDevice, self).__init__(
             app=app,
@@ -477,5 +542,12 @@ class USBMassStorageDevice(USBDevice):
         self.scsi_device.stop()
         self.disk_image.close()
 
+    def handle_set_address_request(self, req):
+        '''
+        When a new address is set,
+        we should reset some flags in the scsi device ...
+        '''
+        self.scsi_device.handle_reset()
+        super(USBMassStorageDevice, self).handle_set_address_request(req)
 
 usb_device = USBMassStorageDevice

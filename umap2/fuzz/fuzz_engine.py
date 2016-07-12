@@ -20,7 +20,13 @@ from kitty.interfaces import WebInterface
 from kitty.model import GraphModel
 from kitty.model import Template, Meta, String, UInt32
 
-import katnip.templates.usb as usb_templates
+from templates import audio
+from templates import cdc
+from templates import enum
+from templates import generic
+from templates import hid
+from templates import mass_storage
+from templates import smart_card
 
 from controller import UmapController
 
@@ -112,7 +118,14 @@ def get_model(options):
     '''
     stage_file = options['--stage-file']
     stages = get_stages(stage_file)
-    templates = enumerate_templates(usb_templates)
+    templates = {}
+    templates.update(enumerate_templates(audio))
+    templates.update(enumerate_templates(cdc))
+    templates.update(enumerate_templates(enum))
+    templates.update(enumerate_templates(generic))
+    templates.update(enumerate_templates(hid))
+    templates.update(enumerate_templates(mass_storage))
+    templates.update(enumerate_templates(smart_card))
     g = GraphModel('usb model (%s)' % (stage_file))
     for stage in stages:
         if stage in templates:
@@ -152,7 +165,7 @@ def get_fuzzer(options=None):
         '--disconnect-delays': '0.0,0.0'
     }
     local_options.update(options)
-    fuzzer = ClientFuzzer(name='UmapFuzzer', option_line=local_options['--kitty-options'])
+    fuzzer = ClientFuzzer(name='Umap2', option_line=local_options['--kitty-options'])
     fuzzer.set_interface(WebInterface())
 
     target = ClientTarget(name='USBTarget')

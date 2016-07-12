@@ -182,7 +182,7 @@ class USBKeyboardInterface(USBInterface):
 
     def type_letter(self, letter, modifiers=0):
         data = struct.pack('<BBB', 0, 0, ord(letter))
-        self.verbose(self.name, 'sending keypress 0x%02x' % ord(letter))
+        self.verbose('sending keypress 0x%02x' % ord(letter))
         self.send_on_endpoint(2, data)
 
 

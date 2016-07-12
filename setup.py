@@ -9,7 +9,7 @@ def read(fname):
 DESCRIPTION = read('README.rst')
 setup(
     name='umap2',
-    version='2.0.0a1',
+    version='2.0.0a2',
     description='USB Host Security Assessment Tool - Revision 2',
     long_description=DESCRIPTION,
     author='NCCGroup & Cisco SAS team',
@@ -19,7 +19,6 @@ setup(
     install_requires=[
         'docopt',
         'kittyfuzzer>=0.6.9',
-        'katnip>=0.2.4'
     ],
     keywords='security,usb,fuzzing,kitty',
     entry_points={

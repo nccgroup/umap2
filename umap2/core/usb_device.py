@@ -122,14 +122,13 @@ class USBDevice(USBBaseActor):
         self.state = State.detached
 
     def run(self):
-        self.phy.service_irqs()
+        self.phy.run()
 
     def ack_status_stage(self):
         self.phy.ack_status_stage()
 
     @mutable('device_descriptor')
-    def get_descriptor(self, n):
-
+    def get_descriptor(self, index=0, valid=False):
         bLength = 18
         bDescriptorType = 1
         bMaxPacketSize0 = self.max_packet_size_ep0
@@ -177,7 +176,7 @@ class USBDevice(USBBaseActor):
 
     def handle_request(self, buf):
         req = USBDeviceRequest(buf)
-        self.debug("received request: %s" % req)
+        self.debug('Received request: %s' % req)
 
         # figure out the intended recipient
         recipient_type = req.get_recipient()
@@ -195,7 +194,7 @@ class USBDevice(USBBaseActor):
             recipient = self.configuration.interfaces[0]  # HACK for Hub class
 
         if not recipient:
-            self.warning("invalid recipient, stalling")
+            self.warning('invalid recipient, stalling')
             self.phy.stall_ep0()
             return
 
@@ -210,7 +209,7 @@ class USBDevice(USBBaseActor):
             handler_entity = recipient.device_vendor
 
         if not handler_entity:
-            self.warning("invalid handler entity, stalling")
+            self.warning('invalid handler entity, stalling')
             self.phy.stall_ep0()
             return
 
@@ -224,6 +223,8 @@ class USBDevice(USBBaseActor):
             self.error('handler entity type: %s' % (type(handler_entity)))
             self.error('handler entity: %s' % (handler_entity))
             self.error('handler_entity.request_handlers: %s' % (handler_entity.request_handlers))
+            for k in sorted(handler_entity.request_handlers.keys()):
+                self.error('0x%02x: %s' % (k, handler_entity.request_handlers[k]))
             self.error('invalid handler, stalling')
             self.phy.stall_ep0()
         try:
@@ -254,7 +255,7 @@ class USBDevice(USBBaseActor):
 
     # USB 2.0 specification, section 9.4.5 (p 282 of pdf)
     def handle_get_status_request(self, req):
-        self.verbose("received GET_STATUS request")
+        self.verbose('Received GET_STATUS request')
         # self-powered and remote-wakeup (USB 2.0 Spec section 9.4.5)
         # response = b'\x03\x00'
         response = b'\x01\x00'
@@ -262,12 +263,12 @@ class USBDevice(USBBaseActor):
 
     # USB 2.0 specification, section 9.4.1 (p 280 of pdf)
     def handle_clear_feature_request(self, req):
-        self.verbose("received CLEAR_FEATURE request with type 0x%02x and value 0x%02x" % (req.request_type, req.value))
+        self.verbose('Received CLEAR_FEATURE request with type 0x%02x and value 0x%02x' % (req.request_type, req.value))
         # self.phy.send_on_endpoint(0, b'')
 
     # USB 2.0 specification, section 9.4.9 (p 286 of pdf)
     def handle_set_feature_request(self, req):
-        self.verbose("received SET_FEATURE request")
+        self.verbose('Received SET_FEATURE request')
         response = b''
         self.phy.send_on_endpoint(0, response)
 
@@ -277,7 +278,7 @@ class USBDevice(USBBaseActor):
         self.state = State.address
         self.ack_status_stage()
 
-        self.verbose("received SET_ADDRESS request for address", self.address)
+        self.verbose('Received SET_ADDRESS request for address', self.address)
 
     # USB 2.0 specification, section 9.4.3 (p 281 of pdf)
     def handle_get_descriptor_request(self, req):
@@ -288,17 +289,17 @@ class USBDevice(USBBaseActor):
 
         response = None
 
-        self.verbose(("received GET_DESCRIPTOR req %d, index %d, " + "language 0x%04x, length %d") % (dtype, dindex, lang, n))
+        self.verbose(('Received GET_DESCRIPTOR req %d, index %d, ' + 'language 0x%04x, length %d') % (dtype, dindex, lang, n))
 
         response = self.descriptors.get(dtype, None)
-        # print ("desc:", self.descriptors)
+        # print ('desc:', self.descriptors)
         if callable(response):
             response = response(dindex)
 
         if response:
             n = min(n, len(response))
             self.phy.send_on_endpoint(0, response[:n])
-            self.verbose("sent %d bytes in response" % n)
+            self.verbose('Sent %d bytes in response' % n)
         else:
             self.phy.stall_ep0()
 
@@ -378,22 +379,26 @@ class USBDevice(USBBaseActor):
 
     # USB 2.0 specification, section 9.4.8 (p 285 of pdf)
     def handle_set_descriptor_request(self, req):
-        self.debug("received SET_DESCRIPTOR request")
+        self.debug('Received SET_DESCRIPTOR request')
 
     # USB 2.0 specification, section 9.4.2 (p 281 of pdf)
     def handle_get_configuration_request(self, req):
         if self.verbose > 0:
-            self.debug("received GET_CONFIGURATION request")
+            self.debug('Received GET_CONFIGURATION request')
         self.phy.send_on_endpoint(0, b'\x01')  # HACK - once configuration supported
 
     # USB 2.0 specification, section 9.4.7 (p 285 of pdf)
     def handle_set_configuration_request(self, req):
-        self.debug("received SET_CONFIGURATION request")
+        self.debug('Received SET_CONFIGURATION request')
         self.supported_device_class_trigger = True
 
         # configs are one-based
-        self.config_num = req.value - 1
-        # print ("DEBUG: config_num=", self.config_num)
+        if (req.value) > len(self.configurations):
+            self.error('Host tries to set invalid configuration: %#x' % (req.value - 1))
+            self.config_num = 0
+        else:
+            self.config_num = req.value - 1
+        self.info('Setting configuration: %#x' % self.config_num)
         self.configuration = self.configurations[self.config_num]
         self.state = State.configured
 
@@ -408,7 +413,7 @@ class USBDevice(USBBaseActor):
 
     # USB 2.0 specification, section 9.4.4 (p 282 of pdf)
     def handle_get_interface_request(self, req):
-        self.debug("received GET_INTERFACE request")
+        self.debug('Received GET_INTERFACE request')
         if req.index == 0:
             # HACK: currently only support one interface
             self.phy.send_on_endpoint(0, b'\x00')
@@ -417,17 +422,17 @@ class USBDevice(USBBaseActor):
 
     # USB 2.0 specification, section 9.4.10 (p 288 of pdf)
     def handle_set_interface_request(self, req):
-        self.debug("received SET_INTERFACE request")
         self.phy.send_on_endpoint(0, b'')
+        self.debug('Received SET_INTERFACE request')
 
     # USB 2.0 specification, section 9.4.11 (p 288 of pdf)
     def handle_synch_frame_request(self, req):
-        self.debug("received SYNCH_FRAME request")
+        self.debug('Received SYNCH_FRAME request')
 
 
 class USBDeviceRequest:
     def __init__(self, raw_bytes):
-        """Expects raw 8-byte setup data request packet"""
+        '''Expects raw 8-byte setup data request packet'''
         (
             self.request_type,
             self.request,
@@ -439,19 +444,19 @@ class USBDeviceRequest:
         self.raw_bytes = raw_bytes
 
     def __str__(self):
-        s = "dir=%d, type=%d, rec=%d, r=%d, v=%d, i=%d, l=%d" % (
+        s = 'dir=%#x, type=%#x, rec=%#x, req=%#x, val=%#x, idx=%#x, len=%#x' % (
             self.get_direction(),
             self.get_type(),
             self.get_recipient(),
             self.request,
             self.value,
-            self.index,
+            self.get_index(),
             self.length
         )
         return s
 
     def raw(self):
-        """returns request as bytes"""
+        '''returns request as bytes'''
         b = struct.pack(
             '<BBHHH',
             self.request_type,
@@ -479,3 +484,5 @@ class USBDeviceRequest:
             return self.index
         elif rec == 2:              # endpoint
             return self.index & 0xf
+        else:
+            return self.index

@@ -15,6 +15,7 @@ Options:
 
 Physical layer:
     fd:<serial_port>        use facedancer connected to given serial port
+    gadgetfs                use gadgetfs (requires mounting of gadgetfs beforehand)
 
 Examples:
     emulate disk-on-key:
@@ -45,6 +46,7 @@ class Umap2FuzzApp(Umap2EmulationApp):
         self.check_connection_commands()
         if self.count == 0:
             self.send_heartbeat()
+        return False
 
     def send_heartbeat(self):
         heartbeat_file = '/tmp/umap_kitty/heartbeat'

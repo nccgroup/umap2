@@ -99,7 +99,7 @@ class USBMtpInterface(USBInterface):
             functional_mode=0x0000,
             capture_formats=[],
             playback_formats=[],
-            manufacturer='BinyaminSharet',
+            manufacturer='UMAP2',
             model='Role',
             device_version='1.2',
             serial_number='3031323334353637',
@@ -173,7 +173,7 @@ class USBMtpDevice(USBDevice):
             product_id=pid,
             device_rev=rev,
             manufacturer_string='Samsung Electronics Co., Ltd',
-            product_string='GT-I9250 Phone [Galaxy Nexus](Mass storage mode)',
+            product_string='GT-I9250 Phone [Galaxy Nexus]',
             serial_number_string='00001',
             configurations=[
                 USBConfiguration(

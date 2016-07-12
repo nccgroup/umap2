@@ -22,7 +22,7 @@ class USBConfiguration(USBBaseActor):
     def __init__(
         self, app, phy,
         index, string, interfaces,
-        attributes=ATTR_REMOTE_WAKEUP | ATTR_SELF_POWERED,
+        attributes=ATTR_SELF_POWERED,
         max_power=0x32,
     ):
         '''
@@ -31,7 +31,7 @@ class USBConfiguration(USBBaseActor):
         :param index: configuration index (starts from 1)
         :param string: configuration string
         :param interfaces: list of interfaces for this configuration
-        :param attributes: configuratioin attributes. one or more of USBConfiguration.ATTR_* (default: ATTR_REMOTE_WAKEUP | ATTR_SELF_POWERED)
+        :param attributes: configuratioin attributes. one or more of USBConfiguration.ATTR_* (default: ATTR_SELF_POWERED)
         :param max_power: maximum power consumption of this configuration (default: 0x32)
         '''
         super(USBConfiguration, self).__init__(app, phy)
@@ -77,7 +77,7 @@ class USBConfiguration(USBBaseActor):
         return s
 
     @mutable('configuration_descriptor')
-    def get_descriptor(self):
+    def get_descriptor(self, usb_type='fullspeed', valid=False):
         '''
         Get the configuration descriptor.
         The configuration descriptor is composed of one or more
@@ -87,7 +87,7 @@ class USBConfiguration(USBBaseActor):
         '''
         interface_descriptors = b''
         for i in self.interfaces:
-            interface_descriptors += i.get_descriptor()
+            interface_descriptors += i.get_descriptor(usb_type, valid)
         bLength = 9  # always 9
         bDescriptorType = DescriptorType.configuration
         wTotalLength = len(interface_descriptors) + 9

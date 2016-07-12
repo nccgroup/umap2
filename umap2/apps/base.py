@@ -8,8 +8,8 @@ import logging
 import docopt
 from serial import Serial, PARITY_NONE
 
-from umap2.phy.facedancer.facedancer import Facedancer
 from umap2.phy.facedancer.max342x_phy import Max342xPhy
+from umap2.phy.gadgetfs.gadgetfs_phy import GadgetFsPhy
 
 
 class Umap2App(object):
@@ -53,25 +53,29 @@ class Umap2App(object):
         return logger
 
     def load_phy(self, phy_string):
-        self.logger.info('loading physical interface: %s' % phy_string)
+        self.logger.info('Loading physical interface: %s' % phy_string)
         phy_arr = phy_string.split(':')
         phy_type = phy_arr[0]
         if phy_type == 'fd':
-            self.logger.debug('physical interface is facedancer')
+            self.logger.debug('Physical interface is facedancer')
             dev_name = phy_arr[1]
             s = Serial(dev_name, 115200, parity=PARITY_NONE, timeout=2)
-            fd = Facedancer(s)
-            phy = Max342xPhy(fd, self)
+            # fd = Facedancer(s)
+            phy = Max342xPhy(self, s)
             return phy
-        raise Exception('phy type not supported: %s' % phy_type)
+        elif phy_type == 'gadgetfs':
+            self.logger.debug('Physical interface is GadgetFs')
+            phy = GadgetFsPhy(self)
+            return phy
+        raise Exception('Phy type not supported: %s' % phy_type)
 
     def load_device(self, dev_name, phy):
         if dev_name in self.umap_classes:
-            self.logger.info('loading USB device %s' % dev_name)
+            self.logger.info('Loading USB device %s' % dev_name)
             module_name = dev_name
             module = importlib.import_module('umap2.dev.%s' % module_name)
         else:
-            self.logger.info('loading custom USB device from file: %s' % dev_name)
+            self.logger.info('Loading custom USB device from file: %s' % dev_name)
             dirpath, filename = os.path.split(dev_name)
             modulename = filename[:-3]
             if dirpath in sys.path:

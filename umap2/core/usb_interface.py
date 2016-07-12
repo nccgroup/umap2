@@ -72,7 +72,7 @@ class USBInterface(USBBaseActor):
         n = req.length
 
         response = None
-        self.debug(('received GET_DESCRIPTOR req %d, index %d, language 0x%04x, length %d' % (dtype, dindex, lang, n)))
+        self.debug(('Received GET_DESCRIPTOR req %d, index %d, language 0x%04x, length %d' % (dtype, dindex, lang, n)))
         # TODO: handle KeyError
         response = self.descriptors[dtype]
         if callable(response):
@@ -84,13 +84,13 @@ class USBInterface(USBBaseActor):
             self.verbose('sent %d bytes in response' % (n))
 
     def handle_set_interface_request(self, req):
-        self.debug("received SET_INTERFACE request")
+        self.debug('Received SET_INTERFACE request')
         self.phy.stall_ep0()
         # self.phy.send_on_endpoint(0, b'')
 
     # Table 9-12 of USB 2.0 spec (pdf page 296)
     @mutable('interface_descriptor')
-    def get_descriptor(self):
+    def get_descriptor(self, usb_type='fullspeed', valid=False):
 
         bLength = 9
         bDescriptorType = 4
@@ -118,9 +118,9 @@ class USBInterface(USBBaseActor):
                 d += desc
 
         for e in self.cs_interfaces:
-            d += e.get_descriptor()
+            d += e.get_descriptor(usb_type, valid)
 
         for e in self.endpoints:
-            d += e.get_descriptor()
+            d += e.get_descriptor(usb_type, valid)
 
         return d
