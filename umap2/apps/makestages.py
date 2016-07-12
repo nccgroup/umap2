@@ -3,7 +3,7 @@
 Prepare stages for USB fuzzing
 
 Usage:
-    umap2makestages -P=PHY_INFO -C=DEVICE_CLASS -s=FILE [-q] [-v ...]
+    umap2makestages -P=PHY_INFO -C=DEVICE_CLASS -s=FILE [-q] [--vid=VID] [--pid=PID] [-v ...]
 
 Options:
     -P --phy PHY_INFO       physical layer info, see list below
@@ -11,6 +11,8 @@ Options:
     -s --stage-file FILE    file to store list of stages in
     -q --quiet              quiet mode. only print warning/error messages
     -v --verbose            verbosity level
+    --vid VID               override vendor ID
+    --pid PID               override product ID
 
 Physical layer:
     fd:<serial_port>        use facedancer connected to given serial port

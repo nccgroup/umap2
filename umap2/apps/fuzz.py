@@ -3,7 +3,7 @@
 Emulate a USB device to be used for fuzzing
 
 Usage:
-    umap2fuzz -P=PHY_INFO -C=DEVICE_CLASS [-q] [-i=FUZZER_IP] [-p FUZZER_PORT] [-v ...]
+    umap2fuzz -P=PHY_INFO -C=DEVICE_CLASS [-q] [--vid=VID] [--pid=PID] [-i=FUZZER_IP] [-p FUZZER_PORT] [-v ...]
 
 Options:
     -P --phy PHY_INFO           physical layer info, see list below
@@ -12,6 +12,8 @@ Options:
     -i --fuzzer-ip HOST         hostname or IP of the fuzzer [default: 127.0.0.1]
     -p --fuzzer-port PORT       port of the fuzzer [default: 26007]
     -q --quiet                  quiet mode. only print warning/error messages
+    --vid VID                   override vendor ID
+    --pid PID                   override product ID
 
 Physical layer:
     fd:<serial_port>        use facedancer connected to given serial port

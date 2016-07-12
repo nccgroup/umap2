@@ -38,16 +38,13 @@ class Umap2App(object):
             # verbose is added by umap2.__init__ module
             2: logging.VERBOSE,
         }
-        if '--verbose' in self.options:
-            verbose = self.options['--verbose']
-        else:
-            verbose = 0
+        verbose = self.options.get('--verbose', 0)
         logger = logging.getLogger('umap2')
         if verbose in levels:
             logger.setLevel(levels[verbose])
         else:
             logger.setLevel(logging.VERBOSE)
-        if '--quiet' in self.options and self.options['--quiet']:
+        if self.options.get('--quiet', False):
             logger.setLevel(logging.WARNING)
         return logger
 
@@ -82,8 +79,27 @@ class Umap2App(object):
             sys.path.insert(0, dirpath)
             module = __import__(modulename, globals(), locals(), [], -1)
         usb_device = module.usb_device
-        dev = usb_device(self, phy)
+        kwargs = self.get_user_device_kwargs()
+        dev = usb_device(self, phy, **kwargs)
         return dev
+
+    def get_user_device_kwargs(self):
+        '''
+        if user provides values for the device, get them here
+        '''
+        kwargs = {}
+        self.update_from_user_param('--vid', 'vid', kwargs, 'int')
+        self.update_from_user_param('--pid', 'pid', kwargs, 'int')
+        return kwargs
+
+    def update_from_user_param(self, flag, arg_name, kwargs, type):
+        val = self.options.get(flag, None)
+        if val is not None:
+            if type == 'int':
+                kwargs[arg_name] = int(val, 0)
+                self.logger.info('Setting user-supplied %s: %#x' % (arg_name, kwargs[arg_name]))
+            else:
+                raise Exception('arg type not supported!!')
 
     def packet_processed(self):
         '''
