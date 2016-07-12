@@ -96,7 +96,7 @@ class USBConfiguration(USBBaseActor):
             '<BBHBBBBB',
             bLength,
             bDescriptorType,
-            wTotalLength,
+            wTotalLength & 0xffff,
             bNumInterfaces,
             self._index,
             self._string_index,

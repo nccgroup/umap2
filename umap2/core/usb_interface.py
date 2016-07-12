@@ -79,14 +79,12 @@ class USBInterface(USBBaseActor):
             response = response(dindex)
 
         if response:
-            n = min(n, len(response))
-            self.phy.send_on_endpoint(0, response[:n])
+            self.phy.send_on_endpoint(0, response)
             self.verbose('sent %d bytes in response' % (n))
 
     def handle_set_interface_request(self, req):
         self.debug('Received SET_INTERFACE request')
         self.phy.stall_ep0()
-        # self.phy.send_on_endpoint(0, b'')
 
     # Table 9-12 of USB 2.0 spec (pdf page 296)
     @mutable('interface_descriptor')
@@ -98,7 +96,7 @@ class USBInterface(USBBaseActor):
 
         d = struct.pack(
             '<BBBBBBBBB',
-            bLength,          # length of descriptor in bytes
+            bLength,  # length of descriptor in bytes
             bDescriptorType,  # descriptor type 4 == interface
             self.number,
             self.alternate,
