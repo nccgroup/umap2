@@ -292,19 +292,17 @@ class USBDevice(USBBaseActor):
         self.verbose(('Received GET_DESCRIPTOR req %d, index %d, ' + 'language 0x%04x, length %d') % (dtype, dindex, lang, n))
 
         response = self.descriptors.get(dtype, None)
-        # print ('desc:', self.descriptors)
         if callable(response):
             response = response(dindex)
 
         if response:
-            n = min(n, len(response))
-            self.phy.send_on_endpoint(0, response[:n])
+            self.phy.send_on_endpoint(0, response)
             self.verbose('Sent %d bytes in response' % n)
         else:
             self.phy.stall_ep0()
 
     #
-    # No need to mutate this one will mutate
+    # No need to mutate this one, will mutate
     # USBConfiguration.get_descriptor instead
     #
     def get_configuration_descriptor(self, num):
