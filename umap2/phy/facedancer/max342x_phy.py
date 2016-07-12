@@ -37,18 +37,31 @@ class Regs:
     io_pins = 0x14
 
 
-class Max342xPhy(PhyInterface):
-    # bitmask values for reg_endpoint_irq = 0x0b
-    is_setup_data_avail = 0x20     # SUDAVIRQ
-    is_in3_buffer_avail = 0x10     # IN3BAVIRQ
-    is_in2_buffer_avail = 0x08     # IN2BAVIRQ
-    is_out1_data_avail = 0x04     # OUT1DAVIRQ
-    is_out0_data_avail = 0x02     # OUT0DAVIRQ
-    is_in0_buffer_avail = 0x01     # IN0BAVIRQ
+class USBCTL:
+    '''
+    USBCTL (r15) register bits
+    '''
+    hoscsten = 0x80
+    vbgate = 0x40
+    chipres = 0x20
+    pwrdown = 0x10
+    connect = 0x08
+    sigrwu = 0x04
 
-    # bitmask values for reg_usb_control = 0x0f
-    usb_control_vbgate = 0x40
-    usb_control_connect = 0x08
+
+class PINCTL:
+    '''
+    PINCTL (r17) register bits
+    '''
+    setup_data_avail = 0x20  # SUDAVIRQ
+    in3_buffer_avail = 0x10  # IN3BAVIRQ
+    in2_buffer_avail = 0x08  # IN2BAVIRQ
+    out1_data_avail = 0x04  # OUT1DAVIRQ
+    out0_data_avail = 0x02  # OUT0DAVIRQ
+    in0_buffer_avail = 0x01  # IN0BAVIRQ
+
+
+class Max342xPhy(PhyInterface):
 
     # bitmask values for reg_pin_control = 0x11
     interrupt_level = 0x08
@@ -64,7 +77,8 @@ class Max342xPhy(PhyInterface):
         self.retries = False
         self.enable()
         rev = self.read_register(Regs.revision)
-        self.info('Facedancer revision: %s' % rev)
+        self.info('MAX F/W revision: %s' % rev)
+        # first, we need to read
         self.write_register(Regs.pin_control, self.full_duplex | self.interrupt_level)
 
     def enable(self):
@@ -106,11 +120,11 @@ class Max342xPhy(PhyInterface):
 
     def connect(self, usb_device):
         super(Max342xPhy, self).connect(usb_device)
-        self.write_register(Regs.usb_control, self.usb_control_vbgate | self.usb_control_connect)
+        self.write_register(Regs.usb_control, USBCTL.vbgate | USBCTL.connect)
         self.info('Connected device %s' % self.connected_device.name)
 
     def disconnect(self):
-        self.write_register(Regs.usb_control, self.usb_control_vbgate)
+        self.write_register(Regs.usb_control, USBCTL.vbgate)
         return super(Max342xPhy, self).disconnect()
 
     def clear_irq_bit(self, reg, bit):
@@ -186,35 +200,35 @@ class Max342xPhy(PhyInterface):
             self.verbose('read endpoint irq: 0x%02x' % irq)
 
             if irq & ~(
-                self.is_in0_buffer_avail |
-                self.is_in2_buffer_avail |
-                self.is_in3_buffer_avail
+                PINCTL.in0_buffer_avail |
+                PINCTL.in2_buffer_avail |
+                PINCTL.in3_buffer_avail
             ):
                 self.debug('notable irq: 0x%02x' % irq)
 
-            if irq & self.is_setup_data_avail:
-                self.clear_irq_bit(Regs.endpoint_irq, self.is_setup_data_avail)
+            if irq & PINCTL.setup_data_avail:
+                self.clear_irq_bit(Regs.endpoint_irq, PINCTL.setup_data_avail)
 
                 b = self.read_bytes(Regs.setup_data_fifo, 8)
-                if (irq & self.is_out0_data_avail) and (ord(b[0]) & 0x80 == 0x00):
+                if (irq & PINCTL.out0_data_avail) and (ord(b[0]) & 0x80 == 0x00):
                     data_bytes_len = struct.unpack('<H', b[6:])[0]
                     b += self.read_bytes(Regs.ep0_fifo, data_bytes_len)
                 self.connected_device.handle_request(b)
 
-            if irq & self.is_out1_data_avail:
+            if irq & PINCTL.out1_data_avail:
                 data = self.read_from_endpoint(1)
                 if data:
                     self.connected_device.handle_data_available(1, data)
-                self.clear_irq_bit(Regs.endpoint_irq, self.is_out1_data_avail)
+                self.clear_irq_bit(Regs.endpoint_irq, PINCTL.out1_data_avail)
 
-            if irq & self.is_in2_buffer_avail:
+            if irq & PINCTL.in2_buffer_avail:
                 try:
                     self.connected_device.handle_buffer_available(2)
                 except:
                     self.error('umap ignored the exception for some reason... will need to address that later on')
                     raise
 
-            if irq & self.is_in3_buffer_avail:
+            if irq & PINCTL.in3_buffer_avail:
                 try:
                     self.connected_device.handle_buffer_available(3)
                 except:
