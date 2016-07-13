@@ -296,6 +296,15 @@ class USBDevice(USBBaseActor):
             response = response(dindex)
 
         if response:
+            #
+            # In many cases, the first time a configutaion descriptor
+            # request is sent, it is expected to return only 9 bytes
+            # this is rather easy to detect.
+            # This is a rather hackish, but it should be enough for
+            # now.
+            #
+            if (dtype == DescriptorType.configuration) and (n == 9):
+                response = response[:n]
             self.phy.send_on_endpoint(0, response)
             self.verbose('Sent %d bytes in response' % n)
         else:
