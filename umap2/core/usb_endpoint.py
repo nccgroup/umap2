@@ -27,7 +27,8 @@ class USBEndpoint(USBBaseActor):
 
     def __init__(
             self, app, phy, number, direction, transfer_type, sync_type,
-            usage_type, max_packet_size, interval, handler, cs_endpoints=None, device_class=None):
+            usage_type, max_packet_size, interval, handler, cs_endpoints=None,
+            usb_class=None, usb_vendor=None):
         '''
         :param app: umap2 application
         :param phy: physical connection
@@ -43,7 +44,8 @@ class USBEndpoint(USBBaseActor):
             func() -> None if direction is IN
         :param handler: interrupt handler for the endpoint
         :param cs_endpoints: list of class-specific endpoints (default: None)
-        :param device_class: USBClass instance (default: None)
+        :param usb_class: USBClass instance (default: None)
+        :param usb_vendor: USB device vendor (default: None)
 
         .. note:: OUT endpoint is 1, IN endpoint is either 2 or 3
         '''
@@ -57,7 +59,8 @@ class USBEndpoint(USBBaseActor):
         self.interval = interval
         self.handler = handler
         self.interface = None
-        self.device_class = device_class
+        self.usb_class = usb_class
+        self.usb_vendor = usb_vendor
         self.cs_endpoints = [] if cs_endpoints is None else cs_endpoints
 
         self.request_handlers = {

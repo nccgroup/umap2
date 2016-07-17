@@ -22,7 +22,7 @@ class USBCSEndpoint(USBBaseActor):
         self.name = name
         self.cs_config = cs_config
         self.interface = None
-        self.device_class = None
+        self.usb_class = None
         self.request_handlers = {
             1: self.handle_clear_feature_request
         }

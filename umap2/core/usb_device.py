@@ -17,7 +17,7 @@ class USBDevice(USBBaseActor):
             protocol_rel_num, max_packet_size_ep0, vendor_id, product_id,
             device_rev, manufacturer_string, product_string,
             serial_number_string, configurations=None, descriptors=None,
-            device_vendor=None):
+            usb_class=None, usb_vendor=None):
         '''
         :param app: umap2 application
         :param phy: physical connection
@@ -33,7 +33,8 @@ class USBDevice(USBBaseActor):
         :param serial_number_string: serial number string
         :param configurations: list of available configurations (default: None)
         :param descriptors: dict of handler for descriptor requests (default: None)
-        :param device_vendor: USB device vendor (default: None)
+        :param usb_class: USBClass instance (default: None)
+        :param usb_vendor: USB device vendor (default: None)
         '''
         super(USBDevice, self).__init__(app, phy)
         if configurations is None:
@@ -54,10 +55,6 @@ class USBDevice(USBBaseActor):
         self.product_id = product_id
         self.device_rev = device_rev
 
-        self.device_vendor = device_vendor
-        if self.device_vendor:
-            self.device_vendor.set_device(self)
-
         self.manufacturer_string_id = self.get_string_id(manufacturer_string)
         self.product_string_id = self.get_string_id(product_string)
         self.serial_number_string_id = self.get_string_id(serial_number_string)
@@ -74,10 +71,23 @@ class USBDevice(USBBaseActor):
         self.configuration = None
         self.configurations = configurations
 
+        self.usb_class = usb_class
+        self.usb_vendor = usb_vendor
+
         for c in self.configurations:
             csi = self.get_string_id(c.get_string())
             c.set_string_index(csi)
             c.set_device(self)
+            # this is fool-proof against weird drivers
+            if self.usb_class is None:
+                self.usb_class = c.usb_class
+            if self.usb_vendor is None:
+                self.usb_vendor = c.usb_vendor
+
+        if self.usb_vendor:
+            self.usb_vendor.device = self
+        if self.usb_class:
+            self.usb_class.device = self
 
         self.state = State.detached
         self.ready = False
@@ -204,9 +214,9 @@ class USBDevice(USBBaseActor):
         if req_type == Request.type_standard:
             handler_entity = recipient
         elif req_type == Request.type_class:
-            handler_entity = recipient.device_class
+            handler_entity = recipient.usb_class
         elif req_type == Request.type_vendor:
-            handler_entity = recipient.device_vendor
+            handler_entity = recipient.usb_vendor
 
         if not handler_entity:
             self.warning('invalid handler entity, stalling')

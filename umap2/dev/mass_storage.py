@@ -485,7 +485,7 @@ class USBMassStorageInterface(USBInterface):
                     handler=self.handle_buffer_available
                 ),
             ],
-            device_class=USBMassStorageClass(app, phy, scsi_device),
+            usb_class=USBMassStorageClass(app, phy, scsi_device),
         )
         self.scsi_device = scsi_device
 

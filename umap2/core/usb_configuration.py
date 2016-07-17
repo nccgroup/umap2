@@ -42,8 +42,15 @@ class USBConfiguration(USBBaseActor):
         self._attributes = attributes
         self._max_power = max_power
         self._device = None
+        self.usb_class = None
+        self.usb_vendor = None
         for i in self.interfaces:
             i.set_configuration(self)
+            # this is fool-proof against weird drivers
+            if i.usb_class is not None:
+                self.usb_class = i.usb_class
+            if i.usb_vendor is not None:
+                self.usb_vendor = i.usb_vendor
 
     def set_device(self, device):
         '''

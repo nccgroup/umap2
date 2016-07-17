@@ -14,10 +14,18 @@ from umap2.fuzz.helpers import mutable
 class USBHubClass(USBClass):
     name = 'HubClass'
 
+    def __init__(self, app, phy):
+        super(USBHubClass, self).__init__(app, phy)
+        self.num_ports = 7
+        self.hub_chars = 0x0000
+        self.pwr_on_2_pwr_good = 2
+        self.hub_contr_current = 50
+
     def setup_local_handlers(self):
         self.local_handlers = {
             0x00: self.handle_get_hub_status,
             0x03: self.handle_set_port_feature,
+            0x06: self.handle_get_descriptor
         }
 
     @mutable('hub_get_hub_status_response')
@@ -32,6 +40,25 @@ class USBHubClass(USBClass):
     @mutable('hub_set_port_feature_response')
     def handle_set_port_feature(self, req):
         return b'\x01'
+
+    @mutable('hub_get_descriptor')
+    def handle_get_descriptor(self, req):
+        d = struct.pack(
+            '<BBHBB',
+            DescriptorType.hub,
+            self.num_ports,
+            self.hub_chars,
+            self.pwr_on_2_pwr_good,
+            self.hub_contr_current,
+        )
+        num_bytes = self.num_ports // 7
+        if self.num_ports % 7 != 0:
+            num_bytes += 1
+        d += '\x00' * num_bytes
+        d += '\xff' * num_bytes
+        d = struct.pack('B', len(d) + 1) + d
+        return d
+
 
 
 class USBHubInterface(USBInterface):
@@ -65,7 +92,7 @@ class USBHubInterface(USBInterface):
             descriptors={
                 DescriptorType.hub: self.get_hub_descriptor
             },
-            device_class=USBHubClass(app, phy)
+            usb_class=USBHubClass(app, phy)
         )
 
     @mutable('hub_descriptor')

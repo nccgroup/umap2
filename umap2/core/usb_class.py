@@ -37,11 +37,10 @@ class USBClass(USBBaseActor):
         :param phy: Physical connection
         '''
         super(USBClass, self).__init__(app, phy)
-        self.interface = None
         self.setup_request_handlers()
-
-    def set_interface(self, interface):
-        self.interface = interface
+        self.device = None
+        self.interface = None
+        self.endpoint = None
 
     def setup_request_handlers(self):
         self.setup_local_handlers()
