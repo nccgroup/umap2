@@ -16,7 +16,7 @@ class USBInterface(USBBaseActor):
         self, app, phy, interface_number, interface_alternate, interface_class,
         interface_subclass, interface_protocol, interface_string_index,
         endpoints=None, descriptors=None, cs_interfaces=None,
-        device_class=None
+        usb_class=None, usb_vendor=None,
     ):
         '''
         :param app: umap2 application
@@ -30,7 +30,8 @@ class USBInterface(USBBaseActor):
         :param endpoints: list of endpoints for this interface (default: None)
         :param descriptors: dictionary of descriptor handlers for the interface (default: None)
         :param cs_interfaces: list of class specific interfaces (default: None)
-        :param device_class: USB device class (default: None)
+        :param usb_class: USB device class (default: None)
+        :param usb_vendor: USB device vendor (default: None)
         '''
         super(USBInterface, self).__init__(app, phy)
         self.number = interface_number
@@ -53,12 +54,20 @@ class USBInterface(USBBaseActor):
 
         self.configuration = None
 
+        self.usb_class = usb_class
+        self.usb_vendor = usb_vendor
+
         for e in self.endpoints:
             e.set_interface(self)
+            if self.usb_class is None:
+                self.usb_class = e.usb_class
+            if self.usb_vendor is None:
+                self.usb_vendor = e.usb_vendor
 
-        self.device_class = device_class
-        if self.device_class:
-            self.device_class.set_interface(self)
+        if self.usb_class:
+            self.usb_class.interface = self
+        if self.usb_vendor:
+            self.usb_vendor.interface = self
 
     def set_configuration(self, config):
         self.configuration = config

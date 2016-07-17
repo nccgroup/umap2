@@ -70,7 +70,7 @@ class USBCommunicationInterface(USBInterface):
                 USBCSInterface('ACMF1', app, phy, struct.pack('BB', 2, bmCapabilities)),
                 USBCSInterface('ACMF2', app, phy, struct.pack('BBB', 6, bControlInterface, bDataInterface)),
             ],
-            device_class=USBCDCClass(app, phy)
+            usb_class=USBCDCClass(app, phy)
         )
 
     def handle_ep3_buffer_available(self):
@@ -117,7 +117,7 @@ class USBCDCDataInterface(USBInterface):
                     handler=self.handle_ep2_buffer_available
                 )
             ],
-            device_class=USBCDCClass(app, phy)
+            usb_class=USBCDCClass(app, phy)
         )
 
     @mutable('cdc_handle_ep1_data_available')

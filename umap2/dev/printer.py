@@ -118,7 +118,7 @@ class USBPrinterInterface(USBInterface):
             interface_protocol=proto,
             interface_string_index=0,
             endpoints=endpoints,
-            device_class=USBPrinterClass(app, phy),
+            usb_class=USBPrinterClass(app, phy),
         )
 
     @mutable('handle_data_available')

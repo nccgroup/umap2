@@ -186,7 +186,7 @@ class USBMtpDevice(USBDevice):
                     ]
                 )
             ],
-            device_vendor=USBMsosVendor(app=app, phy=phy),
+            usb_vendor=USBMsosVendor(app=app, phy=phy),
         )
 
 

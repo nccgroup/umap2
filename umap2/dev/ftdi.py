@@ -2,7 +2,6 @@
 USB Class definitions for FTDI FT232 Serial (UART) device
 '''
 import struct
-from binascii import hexlify
 from six.moves.queue import Queue
 from umap2.core.usb_device import USBDevice
 from umap2.core.usb_configuration import USBConfiguration
@@ -186,7 +185,7 @@ class USBFtdiDevice(USBDevice):
                     max_power=0x2d,
                 )
             ],
-            device_vendor=USBFtdiVendor(app=app, phy=phy)
+            usb_vendor=USBFtdiVendor(app=app, phy=phy)
         )
 
 

@@ -82,7 +82,7 @@ class USBKeyboardInterface(USBInterface):
                 DescriptorType.hid: self.get_hid_descriptor,
                 DescriptorType.report: self.get_report_descriptor
             },
-            device_class=USBKeyboardClass(app, phy)
+            usb_class=USBKeyboardClass(app, phy)
         )
 
         empty_preamble = [0x00] * 10

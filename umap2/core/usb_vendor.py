@@ -11,18 +11,17 @@ class USBVendor(USBBaseActor):
     # maps bRequest to handler function
     request_handlers = {}
 
-    def __init__(self, app, phy, device=None):
+    def __init__(self, app, phy):
         '''
         :param app: umap2 application
         :param phy: physical connection
         :param device: the usb device
         '''
         super(USBVendor, self).__init__(app, phy)
-        self.device = device
         self.setup_request_handlers()
-
-    def set_device(self, device):
-        self.device = device
+        self.device = None
+        self.interface = None
+        self.endpoint = None
 
     def setup_request_handlers(self):
         self.setup_local_handlers()

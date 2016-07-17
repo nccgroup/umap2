@@ -192,7 +192,7 @@ class USBSmartcardInterface(USBInterface):
             interface_string_index=0,
             endpoints=endpoints,
             descriptors=descriptors,
-            device_class=USBSmartcardClass(app, phy)
+            usb_class=USBSmartcardClass(app, phy)
         )
 
         self.proto = 0

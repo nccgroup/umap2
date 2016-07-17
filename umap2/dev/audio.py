@@ -132,7 +132,7 @@ class AudioStreaming(object):
 
 class USBAudioStreamingInterface(USBInterface):
 
-    def __init__(self, app, phy, iface_num, iface_alt, iface_str_idx, cs_ifaces, endpoints, device_class):
+    def __init__(self, app, phy, iface_num, iface_alt, iface_str_idx, cs_ifaces, endpoints, usb_class):
         super(USBAudioStreamingInterface, self).__init__(
             app=app,
             phy=phy,
@@ -144,7 +144,7 @@ class USBAudioStreamingInterface(USBInterface):
             interface_string_index=iface_str_idx,
             cs_interfaces=cs_ifaces,
             endpoints=endpoints,
-            device_class=device_class
+            usb_class=usb_class
         )
 
     @mutable('audio_streaming_interface_descriptor')
@@ -154,7 +154,7 @@ class USBAudioStreamingInterface(USBInterface):
 
 class USBAudioControlInterface(USBInterface):
 
-    def __init__(self, app, phy, iface_num, iface_alt, iface_str_idx, cs_ifaces, device_class):
+    def __init__(self, app, phy, iface_num, iface_alt, iface_str_idx, cs_ifaces, usb_class):
         super(USBAudioControlInterface, self).__init__(
             app=app,
             phy=phy,
@@ -165,7 +165,7 @@ class USBAudioControlInterface(USBInterface):
             interface_protocol=0,
             interface_string_index=iface_str_idx,
             cs_interfaces=cs_ifaces,
-            device_class=device_class
+            usb_class=usb_class
         )
 
     @mutable('audio_control_interface_descriptor')
@@ -179,7 +179,7 @@ class USBAudioDevice(USBDevice):
 
     def __init__(self, app, phy, vid=0x0d8c, pid=0x000c, rev=0x0001, *args, **kwargs):
         audio_streaming = AudioStreaming(app, phy, 2, 1)
-        device_class = USBAudioClass(app, phy)
+        usb_class = USBAudioClass(app, phy)
         super(USBAudioDevice, self).__init__(
             app=app,
             phy=phy,
@@ -221,7 +221,7 @@ class USBAudioDevice(USBDevice):
                                 # Class specific AC interface: mixer unit (Table 4.3.2.3)
                                 USBCSInterface('ACMixerUnit', app, phy, '\x04\x0f\x02\x01\x0d\x02\x03\x00\x00\x00\x00'),
                             ],
-                            device_class=device_class
+                            usb_class=usb_class
                         ),
                         USBAudioStreamingInterface(
                             app=app, phy=phy, iface_num=1, iface_alt=0, iface_str_idx=0,
@@ -242,10 +242,10 @@ class USBAudioDevice(USBDevice):
                                     cs_endpoints=[
                                         USBCSEndpoint('ASEndpoint', app, phy, '\x01\x01\x01\x01\x00')
                                     ],
-                                    device_class=device_class,
+                                    usb_class=usb_class,
                                 )
                             ],
-                            device_class=device_class,
+                            usb_class=usb_class,
                         ),
                         USBAudioStreamingInterface(
                             app=app, phy=phy, iface_num=2, iface_alt=0, iface_str_idx=0,
@@ -266,15 +266,15 @@ class USBAudioDevice(USBDevice):
                                     cs_endpoints=[
                                         USBCSEndpoint('ASEndpoint', app, phy, '\x01\x01\x00\x00\x00')
                                     ],
-                                    device_class=device_class,
+                                    usb_class=usb_class,
                                 )
                             ],
-                            device_class=device_class,
+                            usb_class=usb_class,
                         )
                     ]
                 ),
             ],
-            device_vendor=None
+            usb_vendor=None
         )
 
 
