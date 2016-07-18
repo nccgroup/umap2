@@ -213,6 +213,7 @@ class Max342xPhy(PhyInterface):
                 if (irq & PINCTL.out0_data_avail) and (ord(b[0]) & 0x80 == 0x00):
                     data_bytes_len = struct.unpack('<H', b[6:])[0]
                     b += self.read_bytes(Regs.ep0_fifo, data_bytes_len)
+                self.app.signal_setup_packet_received()
                 self.connected_device.handle_request(b)
 
             if irq & PINCTL.out1_data_avail:
