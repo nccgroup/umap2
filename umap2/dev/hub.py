@@ -41,7 +41,7 @@ class USBHubClass(USBClass):
     def handle_set_port_feature(self, req):
         return b'\x01'
 
-    @mutable('hub_get_descriptor')
+    @mutable('hub_descriptor')
     def handle_get_descriptor(self, req):
         d = struct.pack(
             '<BBHBB',
