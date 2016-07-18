@@ -448,6 +448,19 @@ class USBDevice(USBBaseActor):
 
 
 class USBDeviceRequest:
+
+    setup_request_types = {
+        Request.type_standard: 'standard',
+        Request.type_class: 'class',
+        Request.type_vendor: 'vendor',
+    }
+    setup_request_receipients = {
+        Request.recipient_device: 'device',
+        Request.recipient_interface: 'interface',
+        Request.recipient_endpoint: 'endpoint',
+        Request.recipient_other: 'other',
+    }
+
     def __init__(self, raw_bytes):
         '''Expects raw 8-byte setup data request packet'''
         (
@@ -461,10 +474,13 @@ class USBDeviceRequest:
         self.raw_bytes = raw_bytes
 
     def __str__(self):
-        s = 'dir=%#x, type=%#x, rec=%#x, req=%#x, val=%#x, idx=%#x, len=%#x' % (
+        s = 'dir=%#x (%s), type=%#x (%s), rec=%#x (%s), req=%#x, val=%#x, idx=%#x, len=%#x' % (
             self.get_direction(),
+            'in' if self.get_direction() else 'out',
             self.get_type(),
+            self.setup_request_types.get(self.get_type(), 'unknown'),
             self.get_recipient(),
+            self.setup_request_receipients.get(self.get_recipient(), 'unknown'),
             self.request,
             self.value,
             self.get_index(),
