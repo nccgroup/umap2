@@ -60,7 +60,6 @@ class USBHubClass(USBClass):
         return d
 
 
-
 class USBHubInterface(USBInterface):
     name = 'HubInterface'
 

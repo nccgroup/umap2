@@ -17,7 +17,7 @@ class USBDevice(USBBaseActor):
             protocol_rel_num, max_packet_size_ep0, vendor_id, product_id,
             device_rev, manufacturer_string, product_string,
             serial_number_string, configurations=None, descriptors=None,
-            device_vendor=None):
+            usb_class=None, usb_vendor=None):
         '''
         :param app: umap2 application
         :param phy: physical connection
@@ -33,7 +33,8 @@ class USBDevice(USBBaseActor):
         :param serial_number_string: serial number string
         :param configurations: list of available configurations (default: None)
         :param descriptors: dict of handler for descriptor requests (default: None)
-        :param device_vendor: USB device vendor (default: None)
+        :param usb_class: USBClass instance (default: None)
+        :param usb_vendor: USB device vendor (default: None)
         '''
         super(USBDevice, self).__init__(app, phy)
         if configurations is None:
@@ -54,10 +55,6 @@ class USBDevice(USBBaseActor):
         self.product_id = product_id
         self.device_rev = device_rev
 
-        self.device_vendor = device_vendor
-        if self.device_vendor:
-            self.device_vendor.set_device(self)
-
         self.manufacturer_string_id = self.get_string_id(manufacturer_string)
         self.product_string_id = self.get_string_id(product_string)
         self.serial_number_string_id = self.get_string_id(serial_number_string)
@@ -74,10 +71,23 @@ class USBDevice(USBBaseActor):
         self.configuration = None
         self.configurations = configurations
 
+        self.usb_class = usb_class
+        self.usb_vendor = usb_vendor
+
         for c in self.configurations:
             csi = self.get_string_id(c.get_string())
             c.set_string_index(csi)
             c.set_device(self)
+            # this is fool-proof against weird drivers
+            if self.usb_class is None:
+                self.usb_class = c.usb_class
+            if self.usb_vendor is None:
+                self.usb_vendor = c.usb_vendor
+
+        if self.usb_vendor:
+            self.usb_vendor.device = self
+        if self.usb_class:
+            self.usb_class.device = self
 
         self.state = State.detached
         self.ready = False
@@ -206,7 +216,7 @@ class USBDevice(USBBaseActor):
         elif req_type == Request.type_class:    # for class requests we take the usb_class handler from the configuration
             handler_entity = self.usb_class
         elif req_type == Request.type_vendor:   # for vendor requests we take the usb_vendor handler from the configuration
-                handler_entity = self.usb_vendor
+            handler_entity = self.usb_vendor
 
         if not handler_entity:
             self.warning('invalid handler entity, stalling')
@@ -293,19 +303,26 @@ class USBDevice(USBBaseActor):
         self.verbose(('Received GET_DESCRIPTOR req %d, index %d, ' + 'language 0x%04x, length %d') % (dtype, dindex, lang, n))
 
         response = self.descriptors.get(dtype, None)
-        # print ('desc:', self.descriptors)
         if callable(response):
             response = response(dindex)
 
         if response:
-            n = min(n, len(response))
-            self.phy.send_on_endpoint(0, response[:n])
+            #
+            # In many cases, the first time a configutaion descriptor
+            # request is sent, it is expected to return only 9 bytes
+            # this is rather easy to detect.
+            # This is a rather hackish, but it should be enough for
+            # now.
+            #
+            if (dtype == DescriptorType.configuration) and (n == 9):
+                response = response[:n]
+            self.phy.send_on_endpoint(0, response)
             self.verbose('Sent %d bytes in response' % n)
         else:
             self.phy.stall_ep0()
 
     #
-    # No need to mutate this one will mutate
+    # No need to mutate this one, will mutate
     # USBConfiguration.get_descriptor instead
     #
     def get_configuration_descriptor(self, num):
@@ -431,6 +448,19 @@ class USBDevice(USBBaseActor):
 
 
 class USBDeviceRequest:
+
+    setup_request_types = {
+        Request.type_standard: 'standard',
+        Request.type_class: 'class',
+        Request.type_vendor: 'vendor',
+    }
+    setup_request_receipients = {
+        Request.recipient_device: 'device',
+        Request.recipient_interface: 'interface',
+        Request.recipient_endpoint: 'endpoint',
+        Request.recipient_other: 'other',
+    }
+
     def __init__(self, raw_bytes):
         '''Expects raw 8-byte setup data request packet'''
         (
@@ -444,10 +474,13 @@ class USBDeviceRequest:
         self.raw_bytes = raw_bytes
 
     def __str__(self):
-        s = 'dir=%#x, type=%#x, rec=%#x, req=%#x, val=%#x, idx=%#x, len=%#x' % (
+        s = 'dir=%#x (%s), type=%#x (%s), rec=%#x (%s), req=%#x, val=%#x, idx=%#x, len=%#x' % (
             self.get_direction(),
+            'in' if self.get_direction() else 'out',
             self.get_type(),
+            self.setup_request_types.get(self.get_type(), 'unknown'),
             self.get_recipient(),
+            self.setup_request_receipients.get(self.get_recipient(), 'unknown'),
             self.request,
             self.value,
             self.get_index(),
