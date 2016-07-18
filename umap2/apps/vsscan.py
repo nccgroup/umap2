@@ -1,25 +1,40 @@
 '''
-Scan for vendor specific device support in USB host
+Scan USB host for vendor specific device support
 
 Usage:
-    umap2vsscan -P=PHY_INFO [-q] [-d=kernel_vid_pid.py] [-s=VID:PID] [-t=TIMEOUT] [-z] [-r=RESUME_FILE] [-v ...]
+    umap2vsscan -P=PHY_INFO [-q] [-d=DB_FILE] [-s=VID:PID] [-t=TIMEOUT] [-z|-b=BETWEEN_DELAY] [-r=RESUME_FILE] [-o=OS] [-v ...]
 
 Options:
     -P --phy PHY_INFO           physical layer info, see list below
     -v --verbose                verbosity level
     -q --quiet                  quiet mode. only print warning/error messages
-    -d --db						db file of {(vid, pid):(name,source_line)
+    -d --db DB_FILE				vid, pid database file (see DB_FILE below)
     -s --vid_pid VID:PID        specific VID:PID combination scan
     -t --timeout TIMEOUT        seconds to wait for host to detect each device (defualt: 3)
     -r --resume RESUME_FILE     filename to store/load scan session data
     -z --single_step            wait for keypress between each test
+    -b --between BETWEEN_DALAY  delay in seconds to wait between each test
+    -o --os OS                  specify the host OS (default: Linux)
 
 Physical layer:
     fd:<serial_port>        use facedancer connected to given serial port
+    gadgetfs                use gadgetfs (requires mounting of gadgetfs beforehand)
 
-Example:
-    umap2vsscan -P fd:/dev/ttyUSB0 -q
-    umap2vsscan -P fd:/dev/ttyUSB0 -s=2058:1005 -d=5
+DB_FILE:
+    a python file with a db member which is a list of DBEntry() objects.
+    a sample can be found at: umap2/data/vid_pid_db.py
+
+OS:
+    Linux, Windows, OSX, QNX
+
+VID:PID
+    can be of the form 1234:5678 or 1234-1236:1235-1555
+
+Examples:
+    scan using a db file with 5 seconds timeout and 2 seconds delay between tries
+    umap2vsscan -P fd:/dev/ttyUSB0 -d vid_pid_db.py -t 5 -b 2
+    scan using facedancer a specific vid:pid with 5 seconds timeout
+    umap2vsscan -P fd:/dev/ttyUSB0 -s 2058:1005 -t 5
 '''
 import time
 import traceback
@@ -31,13 +46,53 @@ from umap2.apps.base import Umap2App
 from umap2.dev.vendor_specific import USBVendorSpecificDevice
 
 
-class ScanSession(object):
+class OS(object):
+    LINUX = 'Linux'
+    WINDOWS = 'Windows'
+    OSX = 'OSX'
+    QNX = 'QNX'
+
+
+class DBEntry(object):
+    '''
+    DBEnrty describes a vid, pid.
+    '''
+
+    def __init__(self, vid, pid, vendor_name='', product_name='', drivers={}, constraints=[], info={}):
+        self.vid = vid
+        self.pid = pid
+        self.vendor_name = vendor_name
+        self.product_name = product_name
+        self.drivers = drivers
+        self.constraints = constraints
+        self.info = info
+        self.os = None
+
+    def __str__(self):
+        s = 'vid:pid %04x:%04x' % (self.vid, self.pid)
+        if self.vendor_name:
+            s += ', vendor: %s' % self.vendor_name
+        if self.product_name:
+            s += ', product: %s' % self.product_name
+        if self.drivers:
+            if self.os and self.os in self.drivers:
+                s += ', driver: %s' % self.drivers[self.os]
+            else:
+                s += ', drivers: %s' % self.drivers
+        if self.constraints:
+            s += ', constraints: %s' % self.constraints
+        if self.info:
+            s += ', info %s' % self.info
+        return s
+
+
+class _ScanSession(object):
 
     def __init__(self):
         self.timeout = 5
-        self.db = {}
-        self.supported = {}
-        self.unsupported = {}
+        self.db = []
+        self.supported = []
+        self.unsupported = []
         self.current = 0
 
 
@@ -46,9 +101,10 @@ class Umap2VSScanApp(Umap2App):
     def __init__(self, options):
         super(Umap2VSScanApp, self).__init__(options)
         self.current_usb_function_supported = False
-        self.scan_session = ScanSession()
+        self.scan_session = _ScanSession()
         self.start_time = 0
-        self.stop_signal_recived = False
+        self.stop_signal_received = False
+        self.between_delay = 5
         signal.signal(signal.SIGINT, self.signal_handler)
         timeout = self.options['--timeout']
         if timeout:
@@ -56,21 +112,19 @@ class Umap2VSScanApp(Umap2App):
         self.single_step = False
         if self.options['--single_step']:
             self.single_step = True
-
-    def usb_function_supported(self):
-        '''
-        Callback from a USB device, notifying that the current USB device
-        is supported by the host.
-        '''
-        self.current_usb_function_supported = True
-
-    def signal_handler(self, signal, frame):
-        self.stop_signal_recived = True
+        elif self.options['--between']:
+            self.between_delay = int(self.options['--between'])
+        self.os = self.options['--os']
+        if not self.os:
+            self.os = OS.LINUX
+        else:
+            if self.os not in [x for x in OS.__dict__ if not x.startswith('_')]:
+                self.errot('Unsupported OS: %s choose a supported OS or add the new one to the OS class' % self.os)
 
     def get_device_info(self, device):
         info = []
         if device.endpoints:
-            for e in device.endpoints.keys():
+            for e in device.endpoints:
                 info.append(device.endpoints[e].get_descriptor())
         else:
             info = ''
@@ -79,16 +133,42 @@ class Umap2VSScanApp(Umap2App):
         else:
             return 'device not reached set configuration state'
 
-    def run(self):
-        self.logger.always('Scanning host for supported vendor specific devices')
-        phy = self.load_phy(self.options['--phy'])
-        # db_list = {(0x05ac, 0x1402): ('Apple, Inc.', 'drivers/net/usb/asix_devices.c:1065'), (0x0a5c, 0x21e6): ('Broadcom Corp.', 'bt usb')}
-        # db_list = {(0x0a5c, 0x21e6): ('Broadcom Corp.', 'bt usb')}
+    def load_db_from_file(self, db_file):
+        self.logger.info('loading vid_pid db file: %s' % db_file)
+        dirpath, filename = os.path.split(db_file)
+        modulename = filename[:-3]
+        if dirpath in sys.path:
+            sys.path.remove(dirpath)
+        sys.path.insert(0, dirpath)
+        module = __import__(modulename, globals(), locals(), [], -1)
+        self.scan_session.db = module.db
+        self.logger.always('loaded %d entries' % len(self.scan_session.db))
 
-        resume_file = self.options['--resume']
-        if resume_file and os.path.exists(resume_file):
+    def build_db_from_vid_pid(self, vid_pid):
+        vid, pid = vid_pid.split(':')
+        if '-' in vid:
+            vid_start = int(vid.split('-')[0], 16)
+            vid_end = int(vid.split('-')[1], 16)
+            self.logger.debug('vid start=%04x, vid_end=%04x' % (vid_start, vid_end))
+            vid = range(vid_start, vid_end)
+        else:
+            vid = [int(vid, 16)]
+        if '-' in pid:
+            pid_start = int(pid.split('-')[0], 16)
+            pid_end = int(pid.split('-')[1], 16)
+            self.logger.debug('pid start=%04x, pid_end=%x' % (pid_start, pid_end))
+            pid = range(pid_start, pid_end)
+        else:
+            pid = [int(pid, 16)]
+        for v in vid:
+            for p in pid:
+                self.scan_session.db.append(DBEntry(v, p))
+
+    def build_scan_session(self):
+        self.resume_file = self.options['--resume']
+        if self.resume_file and os.path.exists(self.resume_file):
                 self.logger.always('Resume file found. Loading scan data')
-                with open(resume_file, 'rb') as rf:
+                with open(self.resume_file, 'rb') as rf:
                     self.scan_session = cPickle.load(rf)
         else:
             db_file = self.options['--db']
@@ -97,32 +177,42 @@ class Umap2VSScanApp(Umap2App):
             if db_file and vid_pid:
                 self.logger.warning('not expecting both db file and specific vid:pid. we will use vid:pid')
             if vid_pid:
-                vid, pid = vid_pid.split(':')
-                vid = int(vid, 16)
-                pid = int(pid, 16)
-                vid_pid = (vid, pid)
-                self.scan_session.db = {vid_pid: ('User Specified', 'User Specified')}
+                self.build_db_from_vid_pid(vid_pid)
             elif db_file:
-                self.logger.info('loading vid_pid db file: %s' % db_file)
-                dirpath, filename = os.path.split(db_file)
-                modulename = filename[:-3]
-                if dirpath in sys.path:
-                    sys.path.remove(dirpath)
-                sys.path.insert(0, dirpath)
-                module = __import__(modulename, globals(), locals(), [], -1)
-                self.scan_session.db = module.db
-                self.logger.always('loaded %d entries' % len(self.scan_session.db))
+                self.load_db_from_file(db_file)
             else:
                 self.logger.error('Must select a scan option - db (-d) or specific vid:pid (-p)')
                 return
 
+    def sync_and_increment_session(self):
+        self.scan_session.current += 1
+        if self.resume_file:
+            with open(self.resume_file, 'wb') as rf:
+                cPickle.dump(self.scan_session, rf, 2)
+
+    def print_results(self):
+        num_supported = len(self.scan_session.supported)
+        num_unsupported = len(self.scan_session.unsupported)
+        self.logger.always('---------------------------------')
+        self.logger.always('Found %s supported device(s) (out of %d):' % (num_supported, self.scan_session.current))
+        for i, db_entry in enumerate(self.scan_session.supported):
+            self.logger.always('%d. %s' % (i, db_entry))
+        self.logger.always('Found %s unsupported device(s) (out of %d):' % (num_unsupported, self.scan_session.current))
+        for i, db_entry in enumerate(self.scan_session.unsupported):
+            self.logger.always('%d. %s' % (i, db_entry))
+
+    def run(self):
+        self.build_scan_session()
+        self.logger.always('Scanning host for supported vendor specific devices')
         while self.scan_session.current < (len(self.scan_session.db)):
-            if self.stop_signal_recived:
+            if self.stop_signal_received:
                 break
-            vid, pid = self.scan_session.db.keys()[self.scan_session.current]
-            vendor = self.scan_session.db[(vid, pid)][0]
-            driver = self.scan_session.db[(vid, pid)][1]
-            self.logger.always('Testing support for vid:pid %04x:%04x (vendor: %s, driver: %s)' % (vid, pid, vendor, driver))
+            db_entry = self.scan_session.db[self.scan_session.current]
+            db_entry.os = self.os
+            vid = db_entry.vid
+            pid = db_entry.pid
+            self.logger.always('Testing support for %s' % db_entry)
+            phy = self.load_phy(self.options['--phy'])
             try:
                 self.setup_packet_received = False
                 self.current_usb_function_supported = False
@@ -138,39 +228,27 @@ class Umap2VSScanApp(Umap2App):
             except:
                 self.logger.error(traceback.format_exc())
             if self.current_usb_function_supported:
-                device_info = self.get_device_info(device)
-                self.scan_session.supported[(vid, pid)] = (vendor, driver, device_info)
+                db_entry.info = self.get_device_info(device)
+                self.scan_session.supported.append(db_entry)
             else:
-                device_info = self.get_device_info(device)
-                self.scan_session.unsupported[(vid, pid)] = (vendor, driver, device_info)
-            self.scan_session.current += 1
-            if resume_file:
-                with open(resume_file, 'wb') as rf:
-                    cPickle.dump(self.scan_session, rf, 2)
+                db_entry.info = self.get_device_info(device)
+                self.scan_session.unsupported.append(db_entry)
+            self.sync_and_increment_session()
             if self.single_step:
                 raw_input('press any key to continue')
             else:
-                time.sleep(5)
-        num_supported = len(self.scan_session.supported)
-        num_unsupported = len(self.scan_session.unsupported)
-        # if num_supported:
-        self.logger.always('---------------------------------')
-        self.logger.always('Found %s supported device(s) (out of %d):' % (num_supported, self.scan_session.current))
-        for i, vid_pid in enumerate(self.scan_session.supported):
-            vid = vid_pid[0]
-            pid = vid_pid[1]
-            vendor = self.scan_session.supported[(vid, pid)][0]
-            driver = self.scan_session.supported[(vid, pid)][1]
-            device_info = self.scan_session.supported[(vid, pid)][2]
-            self.logger.always('%d. vid:pid %04x:%04x (vendor: %s, driver: %s, device_info: %s)' % (i + 1, vid, pid, vendor, driver, device_info))
-        self.logger.always('Found %s unsupported device(s) (out of %d):' % (num_unsupported, self.scan_session.current))
-        for i, vid_pid in enumerate(self.scan_session.unsupported):
-            vid = vid_pid[0]
-            pid = vid_pid[1]
-            vendor = self.scan_session.unsupported[(vid, pid)][0]
-            driver = self.scan_session.unsupported[(vid, pid)][1]
-            device_info = self.scan_session.unsupported[(vid, pid)][2]
-            self.logger.always('%d. vid:pid %04x:%04x (vendor: %s, driver: %s, device_info: %s)' % (i + 1, vid, pid, vendor, driver, device_info))
+                time.sleep(self.between_delay)
+        self.print_results()
+
+    def usb_function_supported(self):
+        '''
+        Callback from a USB device, notifying that the current USB device
+        is supported by the host.
+        '''
+        self.current_usb_function_supported = True
+
+    def signal_handler(self, signal, frame):
+        self.stop_signal_received = True
 
     def packet_processed(self):
         self.num_processed += 1

@@ -112,7 +112,7 @@ class USBVendorSpecificDevice(USBDevice):
         )
 
     def get_interfaces(self):
-        return [USBVendorSpecificInterface(self.app, self.phy, num=0,  # must be zero for btusb
+        return [USBVendorSpecificInterface(self.app, self.phy, num=0,
                 endpoints=[
                     self.get_endpoint(1, USBEndpoint.direction_in, USBEndpoint.transfer_type_interrupt),
                     self.get_endpoint(1, USBEndpoint.direction_out, USBEndpoint.transfer_type_interrupt),

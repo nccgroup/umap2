@@ -83,7 +83,6 @@ class GadgetFsPhy(PhyInterface):
         self.configured = False
         # we need to use separate thread for each endpoint ...
         self.out_ep_threads = {}
-        
 
     def _get_control_filename(self):
         '''
@@ -210,6 +209,7 @@ class GadgetFsPhy(PhyInterface):
 
     def _handle_ep0_setup(self, event):
         self.debug('EP0 event type SETUP(%#x)' % (Events.SETUP))
+        self.app.signal_setup_packet_received()
         # read setup data (offset in event)
         setup_data = event[0:GadgetFsPhy.event_type_off]
         req = USBDeviceRequest(setup_data)
@@ -269,7 +269,6 @@ class GadgetFsPhy(PhyInterface):
         self.debug('ep: %d dir: %s file: %s fd: %d' % (num, s_dir, filename, fd))
         return fd
 
-        
     def _handle_ep0_suspend(self, event):
         self.debug('EP0 event type SUSPEND(%#x)' % (Events.SUSPEND))
 

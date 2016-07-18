@@ -27,9 +27,10 @@ setup(
             'umap2emulate=umap2.apps.emulate:main',
             'umap2fuzz=umap2.apps.fuzz:main',
             'umap2list=umap2.apps.list_classes:main',
-            'umap2scan=umap2.apps.scan:main',
-            'umap2stages=umap2.apps.makestages:main',
             'umap2kitty=umap2.fuzz.fuzz_engine:main',
+            'umap2scan=umap2.apps.scan:main',
+            'umap2vsscan=umap2.apps.vsscan:main',
+            'umap2stages=umap2.apps.makestages:main',
         ]
     },
     package_data={}
