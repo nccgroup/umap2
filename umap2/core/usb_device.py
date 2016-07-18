@@ -47,7 +47,7 @@ class USBDevice(USBBaseActor):
         self.strings = []
 
         self.usb_spec_version = 0x0002
-        self.device_class = device_class
+        self._device_class = device_class
         self.device_subclass = device_subclass
         self.protocol_rel_num = protocol_rel_num
         self.max_packet_size_ep0 = max_packet_size_ep0
@@ -95,6 +95,7 @@ class USBDevice(USBBaseActor):
         self.address = 0
 
         self.setup_request_handlers()
+        self.endpoints = {}
 
     def get_string_id(self, s):
         try:
@@ -147,7 +148,7 @@ class USBDevice(USBBaseActor):
             bLength,
             bDescriptorType,
             self.usb_spec_version,
-            self.device_class,
+            self._device_class,
             self.device_subclass,
             self.protocol_rel_num,
             bMaxPacketSize0,
@@ -174,7 +175,7 @@ class USBDevice(USBBaseActor):
             '<BHBBBBBB',
             bDescriptorType,
             self.usb_spec_version,
-            self.device_class,
+            self._device_class,
             self.device_subclass,
             self.protocol_rel_num,
             bMaxPacketSize0,
@@ -189,43 +190,43 @@ class USBDevice(USBBaseActor):
         self.debug('Received request: %s' % req)
 
         # figure out the intended recipient
+        req_type = req.get_type()
         recipient_type = req.get_recipient()
         recipient = None
-        index = req.get_index()
-        if recipient_type == Request.recipient_device:
-            recipient = self
-        elif recipient_type == Request.recipient_interface:
-            index = index & 0xff
-            if index < len(self.configuration.interfaces):
-                recipient = self.configuration.interfaces[index]
-        elif recipient_type == Request.recipient_endpoint:
-            recipient = self.endpoints.get(index, None)
-        elif recipient_type == Request.recipient_other:
-            recipient = self.configuration.interfaces[0]  # HACK for Hub class
-
-        if not recipient:
-            self.warning('invalid recipient, stalling')
-            self.phy.stall_ep0()
-            return
-
-        # and then the type
-        req_type = req.get_type()
         handler_entity = None
-        if req_type == Request.type_standard:
+
+        if req_type == Request.type_standard:    # for standard requests we lookup the recipient by index
+            index = req.get_index()
+            if recipient_type == Request.recipient_device:
+                recipient = self
+            elif recipient_type == Request.recipient_interface:
+                index = index & 0xff
+                if index < len(self.configuration.interfaces):
+                    recipient = self.configuration.interfaces[index]
+                else:
+                    self.warning('Failed to get interface recipient at index: %d' % index)
+            elif recipient_type == Request.recipient_endpoint:
+                recipient = self.endpoints.get(index, None)
+                if recipient is None:
+                    self.warning('Failed to get endpoint recipient at index: %d' % index)
+            elif recipient_type == Request.recipient_other:
+                recipient = self.configuration.interfaces[0]  # HACK for Hub class
             handler_entity = recipient
-        elif req_type == Request.type_class:
-            handler_entity = recipient.usb_class
-        elif req_type == Request.type_vendor:
-            handler_entity = recipient.usb_vendor
+
+        elif req_type == Request.type_class:    # for class requests we take the usb_class handler from the configuration
+            handler_entity = self.usb_class
+        elif req_type == Request.type_vendor:   # for vendor requests we take the usb_vendor handler from the configuration
+            handler_entity = self.usb_vendor
 
         if not handler_entity:
             self.warning('invalid handler entity, stalling')
             self.phy.stall_ep0()
             return
 
-        if handler_entity == 9:  # HACK: for hub class
-            handler_entity = recipient
+        # if handler_entity == 9:  # HACK: for hub class
+        #     handler_entity = recipient
 
+        self.debug('req: %s' % req)
         handler = handler_entity.request_handlers.get(req.request, None)
 
         if not handler:
@@ -420,7 +421,6 @@ class USBDevice(USBBaseActor):
         self.state = State.configured
 
         # collate endpoint numbers
-        self.endpoints = {}
         for i in self.configuration.interfaces:
             for e in i.endpoints:
                 self.endpoints[e.number] = e

@@ -26,10 +26,12 @@ class Umap2App(object):
             'mtp',
             'printer',
             'smartcard',
+            'vendor_specific'
         ]
         self.logger = self.get_logger()
         self.num_processed = 0
         self.fuzzer = None
+        self.setup_packet_received = False
 
     def get_logger(self):
         levels = {
@@ -100,6 +102,12 @@ class Umap2App(object):
                 self.logger.info('Setting user-supplied %s: %#x' % (arg_name, kwargs[arg_name]))
             else:
                 raise Exception('arg type not supported!!')
+
+    def signal_setup_packet_received(self):
+        '''
+        Signal that we received a setup packet from the host (host is alive)
+        '''
+        self.setup_packet_received = True
 
     def packet_processed(self):
         '''
