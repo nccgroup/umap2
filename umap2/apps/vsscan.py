@@ -2,18 +2,18 @@
 Scan USB host for vendor specific device support
 
 Usage:
-    umap2vsscan -P=PHY_INFO [-q] [-d=DB_FILE] [-s=VID:PID] [-t=TIMEOUT] [-z|-b=BETWEEN_DELAY] [-r=RESUME_FILE] [-o=OS] [-v ...]
+    umap2vsscan -P=PHY_INFO [-q] [-d=DB_FILE] [-s=VID:PID] [-t=TIMEOUT] [-z|-b=DELAY] [-r=RESUME_FILE] [-o=OS] [-v ...]
 
 Options:
     -P --phy PHY_INFO           physical layer info, see list below
     -v --verbose                verbosity level
     -q --quiet                  quiet mode. only print warning/error messages
-    -d --db DB_FILE				vid, pid database file (see DB_FILE below)
+    -d --db DB_FILE             vid, pid database file (see DB_FILE below)
     -s --vid_pid VID:PID        specific VID:PID combination scan
     -t --timeout TIMEOUT        seconds to wait for host to detect each device (defualt: 3)
     -r --resume RESUME_FILE     filename to store/load scan session data
     -z --single_step            wait for keypress between each test
-    -b --between BETWEEN_DALAY  delay in seconds to wait between each test
+    -b --between DELAY          delay in seconds to wait between tests
     -o --os OS                  specify the host OS (default: Linux)
 
 Physical layer:
@@ -32,9 +32,9 @@ VID:PID
 
 Examples:
     scan using a db file with 5 seconds timeout and 2 seconds delay between tries
-    umap2vsscan -P fd:/dev/ttyUSB0 -d vid_pid_db.py -t 5 -b 2
+    $ umap2vsscan -P fd:/dev/ttyUSB0 -d vid_pid_db.py -t 5 -b 2
     scan using facedancer a specific vid:pid with 5 seconds timeout
-    umap2vsscan -P fd:/dev/ttyUSB0 -s 2058:1005 -t 5
+    $ umap2vsscan -P fd:/dev/ttyUSB0 -s 2058:1005 -t 5
 '''
 import time
 import traceback
@@ -82,7 +82,7 @@ class DBEntry(object):
         if self.constraints:
             s += ', constraints: %s' % self.constraints
         if self.info:
-            s += ', info %s' % self.info
+            s += ', info: %s' % self.info
         return s
 
 
