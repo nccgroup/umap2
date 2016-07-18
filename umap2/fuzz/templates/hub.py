@@ -31,7 +31,7 @@ hub_descriptor = Descriptor(
     name='hub_descriptor',
     descriptor_type=_DescriptorTypes.HUB,
     fields=[
-        Size(name='bNbrPorts', sized_field='DeviceRemoveable', length=8, calc_func=lambda x: len(x) * 7),
+        Size(name='bNbrPorts', sized_field='DeviceRemovable', length=8, calc_func=lambda x: len(x) * 7),
         LE16(name='wHubCharacteristics', value=0x0000),
         UInt8(name='bPwrOn2PwrGood', value=0x00),
         UInt8(name='bHubContrCurrent', value=0x02),
