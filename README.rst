@@ -114,6 +114,33 @@ and checking whether a device-specific message was sent.
 
     $ umap2scan -P fd:/dev/ttyUSB0
 
+Vendor Specific Device Support Scanning
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+In addition for scanning support of various device classes,
+Umap2 can scan the host for support of vendor specific devices.
+
+Vendor specific scanning helps identifying the vendor specific drivers
+that are available on the host.
+
+This can be done using the current Umap2 VID-PID DB (still working on it),
+or another file in the same format:
+
+::
+
+    $ umap2vsscan -P fd:/dev/ttyUSB0 -d $UMAP2_DIR/data/vid_pid_db.py
+
+Or by scanning a specific vid-pid range -
+in this example -
+scan for each combination of VID from 0x1001 to 0x1004
+and PID from 0x0000 to 0xffff:
+
+::
+
+    $ umap2vsscan -P fd:/dev/ttyUSB0 -s 1001-1004:0000-ffff
+
+Any patches/additions to the vid_pid_db.py file are very welcome!
+
 Fuzzing
 ~~~~~~~
 
