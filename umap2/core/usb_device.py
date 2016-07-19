@@ -295,27 +295,18 @@ class USBDevice(USBBaseActor):
     def handle_get_descriptor_request(self, req):
         dtype = (req.value >> 8) & 0xff
         dindex = req.value & 0xff
-        lang = req.index
         n = req.length
 
         response = None
 
-        self.verbose(('Received GET_DESCRIPTOR req %d, index %d, ' + 'language 0x%04x, length %d') % (dtype, dindex, lang, n))
+        self.verbose('Received GET_DESCRIPTOR request')
 
         response = self.descriptors.get(dtype, None)
         if callable(response):
             response = response(dindex)
 
         if response:
-            #
-            # In many cases, the first time a configutaion descriptor
-            # request is sent, it is expected to return only 9 bytes
-            # this is rather easy to detect.
-            # This is a rather hackish, but it should be enough for
-            # now.
-            #
-            if (dtype == DescriptorType.configuration) and (n == 9):
-                response = response[:n]
+            response = response[:n]
             self.phy.send_on_endpoint(0, response)
             self.verbose('Sent %d bytes in response' % n)
         else:
