@@ -145,12 +145,11 @@ class GadgetFsPhy(PhyInterface):
         self.stop = False
         while not self.stop:
             # EP0 read and IN endpoints write thread.
-            ready_out_eps, _, _ = select.select([self.control_fd], [], [], 0.001)
-            for ep_fd in ready_out_eps:
-                ep_num = self.fd_ep_mapping[ep_fd]
+            ready_eps, _, _ = select.select([self.control_fd], [], [], 0.001)
+            if ready_eps:
                 self._handle_ep0()
-                if self.app.packet_processed():
-                    self.stop = True
+            if self.app.should_stop_phy():
+                self.stop = True
             for ep_fd in self.in_ep_fds:
                 self.connected_device.handle_buffer_available(self.fd_ep_mapping[ep_fd])
         self.debug('Done with run loop')

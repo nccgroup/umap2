@@ -235,7 +235,7 @@ class Max342xPhy(PhyInterface):
                 except:
                     self.error('umap ignored the exception for some reason... will need to address that later on')
                     raise
-            if self.app.packet_processed():
+            if self.app.should_stop_phy():
                 break
 
     # code that should be removed soon

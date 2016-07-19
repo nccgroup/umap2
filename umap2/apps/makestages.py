@@ -33,14 +33,11 @@ class Umap2MakeStagesApp(Umap2EmulationApp):
         set_stage_logger(stage_logger)
         return super(Umap2MakeStagesApp, self).load_device(dev_name, phy)
 
-    def packet_processed(self):
-        self.num_processed += 1
+    def should_stop_phy(self):
         stop_phy = False
-        if self.num_processed == 3000:
-            self.logger.info('Reached %#x packets, stopping phy' % self.num_processed)
-            stop_phy = True
-        elif time.time() - self.start_time > 5:
-            self.logger.info('have been waiting long enough (over %d secs.), disconnect' % (int(time.time() - self.start_time)))
+        passed = int(time.time() - self.start_time)
+        if passed > 5:
+            self.logger.info('have been waiting long enough (over %d secs.), disconnect' % (passed))
             stop_phy = True
         return stop_phy
 

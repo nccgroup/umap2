@@ -57,7 +57,6 @@ class Umap2ScanApp(Umap2App):
                 self.logger.always('Device is SUPPORTED')
                 supported.append(device_name)
             self.current_usb_function_supported = False
-            self.num_processed = 0
             time.sleep(2)
         if len(supported):
             self.logger.always('---------------------------------')
@@ -66,17 +65,14 @@ class Umap2ScanApp(Umap2App):
                 self.logger.always('%d. %s' % (i + 1, device_name))
         self.logger.warning('Note: printer is not tested at the moment')
 
-    def packet_processed(self):
+    def should_stop_phy(self):
         # if self.current_usb_function_supported:
         #     self.logger.debug('Current USB device is supported, stopping phy')
         #     return True
-        self.num_processed += 1
         stop_phy = False
-        if self.num_processed == 3000:
-            self.logger.info('Reached %#x packets, stopping phy' % self.num_processed)
-            stop_phy = True
-        elif time.time() - self.start_time > 5:
-            self.logger.info('have been waiting long enough (over %d secs.), disconnect' % (int(time.time() - self.start_time)))
+        passed = int(time.time() - self.start_time)
+        if passed > 5:
+            self.logger.info('have been waiting long enough (over %d secs.), disconnect' % (passed))
             stop_phy = True
         return stop_phy
 

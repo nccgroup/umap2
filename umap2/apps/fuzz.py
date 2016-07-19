@@ -43,7 +43,7 @@ class Umap2FuzzApp(Umap2EmulationApp):
         fuzzer.start()
         return fuzzer
 
-    def packet_processed(self):
+    def should_stop_phy(self):
         self.count = (self.count + 1) % 50
         self.check_connection_commands()
         if self.count == 0:
@@ -67,7 +67,7 @@ class Umap2FuzzApp(Umap2EmulationApp):
             while not self._should_reconnect():
                 self._clear_disconnect_trigger()  # be robust to additional disconnect requests
                 time.sleep(0.1)
-            # now that we received a reconnect request, flow into the handling of it...
+        # now that we received a reconnect request, flow into the handling of it...
         # be robust to reconnection requests, whether received after a disconnect request, or standalone
         # (not sure this is right, might be better to *not* be robust in the face of possible misuse?)
         if self._should_reconnect():

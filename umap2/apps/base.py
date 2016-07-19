@@ -109,9 +109,8 @@ class Umap2App(object):
         '''
         self.setup_packet_received = True
 
-    def packet_processed(self):
+    def should_stop_phy(self):
         '''
-        Callback from phy after processing of each packet
         :return: whether phy should stop serving.
         '''
         return False

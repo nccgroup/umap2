@@ -216,7 +216,6 @@ class Umap2VSScanApp(Umap2App):
             try:
                 self.setup_packet_received = False
                 self.current_usb_function_supported = False
-                self.num_processed = 0
                 self.start_time = time.time()
                 device = USBVendorSpecificDevice(self, phy, vid, pid)
                 device.connect()
@@ -250,14 +249,10 @@ class Umap2VSScanApp(Umap2App):
     def signal_handler(self, signal, frame):
         self.stop_signal_received = True
 
-    def packet_processed(self):
-        self.num_processed += 1
+    def should_stop_phy(self):
         stop_phy = False
         time_elapsed = int(time.time() - self.start_time)
         if self.current_usb_function_supported:
-            stop_phy = True
-        elif self.num_processed == 3000:
-            self.logger.info('Reached %#x packets, stopping phy' % self.num_processed)
             stop_phy = True
         elif time_elapsed > self.scan_session.timeout:
             self.logger.info('have been waiting long enough (over %d secs.), disconnect' % (time_elapsed))
