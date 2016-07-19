@@ -1,3 +1,4 @@
+import time
 import struct
 import select
 import os
@@ -121,21 +122,27 @@ class GadgetFsPhy(PhyInterface):
             if self._is_high_speed():
                 buff += conf.get_descriptor(usb_type='highspeed', valid=True)  # might need to specify USB version here...
         buff += self.connected_device.get_descriptor(valid=True)
-        self.debug('About to write %#x configuration bytes to control file (%d)' % (len(buff), self.control_fd))
+        self.verbose('About to write %#x configuration bytes to control file (%d)' % (len(buff), self.control_fd))
         os.write(self.control_fd, buff)
-        self.debug('Write completed')
+        self.verbose('Write completed')
 
     def disconnect(self):
         self.control_fd = None
+        # signal threads to stop the loop
         ep_nums = self.out_ep_threads.keys()
         for ep_num in ep_nums:
             self.out_ep_threads[ep_num].stop_evt.set()
-            del self.out_ep_threads[ep_num]
+        # close all file descriptors
         fds = self.fd_ep_mapping.keys()
         for fd in fds:
             os.close(fd)
-            self.debug('Closed fd: %d' % (fd))
+            self.verbose('Closed fd: %d' % (fd))
             del self.fd_ep_mapping[fd]
+        # now, wait for all threads to complete
+        ep_nums = self.out_ep_threads.keys()
+        for ep_num in ep_nums:
+            self.out_ep_threads[ep_num].join()
+            del self.out_ep_threads[ep_num]
         self.ep_fd_mapping = {}
         self.in_ep_fds = []
         return super(GadgetFsPhy, self).disconnect()
@@ -162,9 +169,9 @@ class GadgetFsPhy(PhyInterface):
         if data:
             fd = self.ep_fd_mapping[ep_num]
             os.write(fd, data)
-            self.debug('Done writing %d bytes on endpoint %d' % (len(data), ep_num))
+            self.verbose('Done writing %d bytes on endpoint %d' % (len(data), ep_num))
         elif ep_num == 0:
-            self.debug('No data, stalling ep0')
+            self.verbose('No data, stalling ep0')
             self.stall_ep0()
 
     def stall_ep0(self):
@@ -178,7 +185,16 @@ class GadgetFsPhy(PhyInterface):
 
     def _handle_ep0(self):
         # read event
-        event = os.read(self.control_fd, GadgetFsPhy.event_size)
+        while True:
+            try:
+                event = os.read(self.control_fd, GadgetFsPhy.event_size)
+                break
+            except OSError as ose:
+                if ose.errno == 11:  # resourse temporarily busy
+                    time.sleep(0.01)
+                    continue
+                raise
+        # event = os.read(self.control_fd, GadgetFsPhy.event_size)
         if len(event) != GadgetFsPhy.event_size:
             msg = 'Did not read full event (%d/%d)' % (len(event), GadgetFsPhy.event_size)
             self.error(msg)
