@@ -58,7 +58,10 @@ def mutable(stage, silent=False):
                     if not silent:
                         info('Got mutation for stage %s' % stage)
                 else:
-                    info('Calling %s (stage: "%s")' % (func.__name__, stage))
+                    if valid_req:
+                        info('Calling %s' % (func.__name__))
+                    else:
+                        info('Calling %s (stage: "%s")' % (func.__name__, stage))
                     response = func(self, *args, **kwargs)
             except Exception as e:
                 self.logger.error(traceback.format_exc())
