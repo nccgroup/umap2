@@ -125,7 +125,7 @@ class Umap2VSScanApp(Umap2App):
         info = []
         if device.endpoints:
             for e in device.endpoints:
-                info.append(device.endpoints[e].get_descriptor())
+                info.append(device.endpoints[e].get_descriptor(valid=True))
         else:
             info = ''
         if info:
@@ -204,6 +204,7 @@ class Umap2VSScanApp(Umap2App):
     def run(self):
         self.build_scan_session()
         self.logger.always('Scanning host for supported vendor specific devices')
+        phy = self.load_phy(self.options['--phy'])
         while self.scan_session.current < (len(self.scan_session.db)):
             if self.stop_signal_received:
                 break
@@ -212,20 +213,19 @@ class Umap2VSScanApp(Umap2App):
             vid = db_entry.vid
             pid = db_entry.pid
             self.logger.always('Testing support for %s' % db_entry)
-            phy = self.load_phy(self.options['--phy'])
+            self.setup_packet_received = False
+            self.current_usb_function_supported = False
+            self.start_time = time.time()
+            device = USBVendorSpecificDevice(self, phy, vid, pid)
             try:
-                self.setup_packet_received = False
-                self.current_usb_function_supported = False
-                self.start_time = time.time()
-                device = USBVendorSpecificDevice(self, phy, vid, pid)
                 device.connect()
                 device.run()
-                device.disconnect()
-                if not self.setup_packet_received:
-                    self.logger.error('Host appears to have died or is simply ignoring us :(')
-                    break
             except:
                 self.logger.error(traceback.format_exc())
+            device.disconnect()
+            if not self.setup_packet_received:
+                self.logger.error('Host appears to have died or is simply ignoring us :(')
+                break
             if self.current_usb_function_supported:
                 db_entry.info = self.get_device_info(device)
                 self.scan_session.supported.append(db_entry)
@@ -254,7 +254,7 @@ class Umap2VSScanApp(Umap2App):
         time_elapsed = int(time.time() - self.start_time)
         if self.current_usb_function_supported:
             stop_phy = True
-        elif time_elapsed > self.scan_session.timeout:
+        elif time_elapsed >= self.scan_session.timeout:
             self.logger.info('have been waiting long enough (over %d secs.), disconnect' % (time_elapsed))
             stop_phy = True
         return stop_phy
