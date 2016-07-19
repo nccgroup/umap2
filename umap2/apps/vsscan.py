@@ -118,8 +118,8 @@ class Umap2VSScanApp(Umap2App):
         if not self.os:
             self.os = OS.LINUX
         else:
-            if self.os not in [x for x in OS.__dict__ if not x.startswith('_')]:
-                self.errot('Unsupported OS: %s choose a supported OS or add the new one to the OS class' % self.os)
+            if self.os not in [getattr(OS, x) for x in dir(OS) if not x.startswith('_')]:
+                self.error('Unsupported OS: %s choose a supported OS or add the new one to the OS class' % self.os)
 
     def get_device_info(self, device):
         info = []
