@@ -85,6 +85,9 @@ class DBEntry(object):
             s += ', info: %s' % self.info
         return s
 
+    def vidpid(self):
+        return '%04x:%04x' % (self.vid, self.pid)
+
 
 class _ScanSession(object):
 
@@ -93,6 +96,9 @@ class _ScanSession(object):
         self.db = []
         self.supported = []
         self.unsupported = []
+        # key: device that got no response
+        # value: previous device (if any)
+        self.no_response = {}
         self.current = 0
 
 
@@ -186,6 +192,9 @@ class Umap2VSScanApp(Umap2App):
 
     def sync_and_increment_session(self):
         self.scan_session.current += 1
+        self.sync_session()
+
+    def sync_session(self):
         if self.resume_file:
             with open(self.resume_file, 'wb') as rf:
                 cPickle.dump(self.scan_session, rf, 2)
@@ -193,18 +202,29 @@ class Umap2VSScanApp(Umap2App):
     def print_results(self):
         num_supported = len(self.scan_session.supported)
         num_unsupported = len(self.scan_session.unsupported)
-        self.logger.always('---------------------------------')
-        self.logger.always('Found %s supported device(s) (out of %d):' % (num_supported, self.scan_session.current))
+        self.logger.always('----------------------------------------')
+        self.logger.always('Found %s supported device(s) (out of %s):' % (num_supported, self.scan_session.current))
         for i, db_entry in enumerate(self.scan_session.supported):
             self.logger.always('%d. %s' % (i, db_entry))
-        self.logger.always('Found %s unsupported device(s) (out of %d):' % (num_unsupported, self.scan_session.current))
+        self.logger.always('----------------------------------------')
+        self.logger.always('Found %s unsupported device(s) (out of %s):' % (num_unsupported, self.scan_session.current))
         for i, db_entry in enumerate(self.scan_session.unsupported):
             self.logger.always('%d. %s' % (i, db_entry))
+        self.logger.always('----------------------------------------')
+        self.logger.always('Devices with no response (previous):')
+        for i in sorted(self.scan_session.no_response.keys()):
+            if self.scan_session.no_response[i]:
+                prev = self.scan_session.no_response[i]
+                pvp = self.scan_session.db[prev].vidpid()
+            else:
+                pvp = None
+            self.logger.always('%s (%s)' % (self.scan_session.db[i], pvp))
 
     def run(self):
         self.build_scan_session()
         self.logger.always('Scanning host for supported vendor specific devices')
         phy = self.load_phy(self.options['--phy'])
+        self.prev_index = None
         while self.scan_session.current < (len(self.scan_session.db)):
             if self.stop_signal_received:
                 break
@@ -223,8 +243,7 @@ class Umap2VSScanApp(Umap2App):
             except:
                 self.logger.error(traceback.format_exc())
             device.disconnect()
-            if not self.setup_packet_received:
-                self.logger.error('Host appears to have died or is simply ignoring us :(')
+            if not self.is_host_alive():
                 break
             if self.current_usb_function_supported:
                 db_entry.info = self.get_device_info(device)
@@ -232,12 +251,22 @@ class Umap2VSScanApp(Umap2App):
             else:
                 db_entry.info = self.get_device_info(device)
                 self.scan_session.unsupported.append(db_entry)
+            self.prev_index = self.scan_session.current
             self.sync_and_increment_session()
             if self.single_step:
                 raw_input('press any key to continue')
             else:
                 time.sleep(self.between_delay)
         self.print_results()
+
+    def is_host_alive(self):
+        if not self.setup_packet_received:
+            self.logger.error('Host appears to have died or is simply ignoring us :(')
+            current_index = self.scan_session.current
+            if current_index not in self.scan_session.no_response:
+                self.scan_session.no_response[current_index] = self.prev_index
+            self.sync_session()
+        return self.setup_packet_received
 
     def usb_function_supported(self):
         '''
