@@ -77,9 +77,8 @@ class GadgetFsPhy(PhyInterface):
             raise Exception('GadgetFsPhy is only supported on Linux')
         self.gadgetfs_dir = gadgetfs_dir
         self.control_fd = None
-        self.in_ep_fds = []
         self.fd_ep_mapping = {}
-        self.ep_fd_mapping = {}
+        self.in_ep_fd_mapping = {}
         self.control_filename = self._get_control_filename()
         self.configured = False
         # we need to use separate thread for each endpoint ...
@@ -113,7 +112,7 @@ class GadgetFsPhy(PhyInterface):
         super(GadgetFsPhy, self).connect(device)
         self.control_fd = os.open(self.control_filename, os.O_RDWR | os.O_NONBLOCK)
         self.fd_ep_mapping[self.control_fd] = 0
-        self.ep_fd_mapping[0] = self.control_fd
+        self.in_ep_fd_mapping[0] = self.control_fd
         self.debug('Opened control file: %s' % (self.control_filename))
         set_highspeed_endpoints(self.connected_device)
         buff = struct.pack('I', Tags.INIT_DEVICE)
@@ -143,8 +142,7 @@ class GadgetFsPhy(PhyInterface):
         for ep_num in ep_nums:
             self.out_ep_threads[ep_num].join()
             del self.out_ep_threads[ep_num]
-        self.ep_fd_mapping = {}
-        self.in_ep_fds = []
+        self.in_ep_fd_mapping = {}
         return super(GadgetFsPhy, self).disconnect()
 
     def run(self):
@@ -157,8 +155,8 @@ class GadgetFsPhy(PhyInterface):
                 self._handle_ep0()
             if self.app.should_stop_phy():
                 self.stop = True
-            for ep_fd in self.in_ep_fds:
-                self.connected_device.handle_buffer_available(self.fd_ep_mapping[ep_fd])
+            for in_ep in self.in_ep_fd_mapping:
+                self.connected_device.handle_buffer_available(in_ep)
         self.debug('Done with run loop')
 
     def send_on_endpoint(self, ep_num, data):
@@ -167,7 +165,7 @@ class GadgetFsPhy(PhyInterface):
         '''
         self.debug('send_on_endpoint %d(%d): %s' % (ep_num, len(data), hexlify(data)))
         if data:
-            fd = self.ep_fd_mapping[ep_num]
+            fd = self.in_ep_fd_mapping[ep_num]
             os.write(fd, data)
             self.verbose('Done writing %d bytes on endpoint %d' % (len(data), ep_num))
         elif ep_num == 0:
@@ -249,22 +247,35 @@ class GadgetFsPhy(PhyInterface):
                 self._setup_endpoint(ep)
 
     def _setup_endpoint(self, ep):
-        ep_fd = self._get_endpoint_fd(ep)
-        ep_num = ep.number
-        self.fd_ep_mapping[ep_fd] = ep_num
-        self.ep_fd_mapping[ep_num] = ep_fd
-        buff = struct.pack('I', Tags.INIT_EP)
-        descs = ep.get_descriptor(usb_type='fullspeed', valid=True)
-        if self._is_high_speed():
-            descs += ep.get_descriptor(usb_type='highspeed', valid=True)
-        descs = filter_descriptors(descs, DescriptorType.endpoint)
-        buff += descs
-        os.write(ep_fd, buff)
-        if ep.direction == 0:
-            self.out_ep_threads[ep_num] = OutEpThread(self, ep_fd, ep)
-            self.out_ep_threads[ep_num].start()
+        if self._ep_already_opened(ep):
+            self._update_ep(ep)
         else:
-            self.in_ep_fds.append(ep_fd)
+            ep_fd = self._get_endpoint_fd(ep)
+            ep_num = ep.number
+            self.fd_ep_mapping[ep_fd] = ep_num
+            buff = struct.pack('I', Tags.INIT_EP)
+            descs = ep.get_descriptor(usb_type='fullspeed', valid=True)
+            if self._is_high_speed():
+                descs += ep.get_descriptor(usb_type='highspeed', valid=True)
+            descs = filter_descriptors(descs, DescriptorType.endpoint)
+            buff += descs
+            os.write(ep_fd, buff)
+            if ep.direction == 0:
+                self.out_ep_threads[ep_num] = OutEpThread(self, ep_fd, ep)
+                self.out_ep_threads[ep_num].start()
+            else:
+                self.in_ep_fd_mapping[ep_num] = ep_fd
+
+    def _ep_already_opened(self, ep):
+        if (ep.direction == 1) and (ep.number in self.in_ep_fd_mapping):
+            return True
+        if (ep.direction == 0) and (ep.number in self.out_ep_threads):
+            return True
+        return False
+
+    def _update_ep(self, ep):
+        if ep.direction == 0:
+            self.out_ep_threads[ep.number].ep = ep
 
     def _get_endpoint_fd(self, ep):
         '''
