@@ -63,6 +63,12 @@ class ScsiSenseKeys(object):
     MISCOMPARE = 0x0E
 
 
+class ScsiCmdStatus(object):
+    COMMAND_PASSED = 0x00
+    COMMAND_FAILED = 0x01
+    PHASE_ERROR = 0x02
+
+
 class USBMassStorageClass(USBClass):
     name = 'MassStorageClass'
 
@@ -201,13 +207,14 @@ class ScsiDevice(USBBaseActor):
                     resp = self.handlers[opcode](cbw)
                     if resp is not None:
                         self.tx.put(resp)
-                    self.tx.put(scsi_status(cbw, 0))
+                    self.tx.put(scsi_status(cbw, ScsiCmdStatus.COMMAND_PASSED))
                 except Exception as ex:
                     self.warning('exception while processing opcode %#x' % (opcode))
                     self.warning(ex)
-                    self.tx.put(scsi_status(cbw, 2))
+                    self.tx.put(scsi_status(cbw, ScsiCmdStatus.COMMAND_FAILED))
             else:
-                raise Exception('No handler for opcode %#x' % (opcode))
+                self.error('No handler for opcode %#x, return CSW with ScsiCmdStatus.COMMAND_FAILED' % (opcode))
+                self.tx.put(scsi_status(cbw, ScsiCmdStatus.COMMAND_FAILED))
 
     def handle_write_data(self, data):
         self.write_data += data
@@ -218,7 +225,7 @@ class ScsiDevice(USBBaseActor):
             self.disk_image.put_sector_data(self.write_base_lba, self.write_data)
             self.is_write_in_progress = False
             self.write_data = b''
-            self.tx.put(scsi_status(self.write_cbw, 0))
+            self.tx.put(scsi_status(self.write_cbw, ScsiCmdStatus.COMMAND_PASSED))
 
     @mutable('scsi_inquiry_response')
     def handle_inquiry(self, cbw):
