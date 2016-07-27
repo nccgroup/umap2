@@ -29,7 +29,8 @@ Limitations
 -----------
 
 - Currently we only support **BeagleBone Black** with Robert C. Nelson's Linux
-  kernel, you can clone it from it from `here <https://github.com/RobertCNelson/bb-kernel>`_ and use the branch **am33x-v4.7**.
+  kernel, you can clone it from it from `here <https://github.com/RobertCNelson/bb-kernel>`_
+  and use the branch **am33x-v4.7**.
   Read the installation instructions below for more information.
 - Setup request frame data is not supported at the moment,
   this affects couple of devices that will not be emulated properly by Umap2.
@@ -37,44 +38,50 @@ Limitations
   This causes some devices to malfunction in certain cases.
 - The GadgetFS kernel module requires some modifications
   (provided here)
+- You need to run umap2 as root
 
-Installation (BeagleBone Black)
--------------------------------
+Installation
+------------
 
-- Install the standard, latest, debian image for BeagleBone from
-  `here <https://beagleboard.org/latest-images>`_
-- Clone and build Robert C. Nelson's Linux kernel from here:
+Since there are possibly many different platforms that support USB gadget,
+we will not provide a detailed instructions for each one.
+Instead, we assume that you are already able to build kernel modules
+on your platforms.
 
-  ::
+Since there are differences in the kernel APIs between different kernels,
+we provide 2 versions of the patched inode.c (gadgetfs module source),
+their names are inode.c.{KERNEL_VERSION}.patched.
+There aren't that many changes in gadgetfs anymore,
+so if you have a rather updated kernel,
+you should probably be able to use one of the versions.
 
-    $ git clone git@github.com:RobertCNelson/bb-kernel.git
-    $ cd bb-kernel
-    $ git checkout am33x-v4.7
-    $ ./build_kernel.sh
+**Note:** Currently we assume that all operations are running as root.
 
-- Install the kernel to the device (as explained in Robert's repo)
-- Rebuild the gadgetfs module with our modifications and copy it to the device:
+::
 
-  ::
+  $ pip install -e $UMAP2_HOME
+  $ cd $UMAP2_HOME/gadgetfs
+  $ cp inode.c.MY_KERNEL_VERSION.patched inode.c
+  $ make modules
+  $ cp gadgetfs.ko /root/
 
-    $ cp $UMAP2_HOME/gadget/inode.c $BB_KERNEL_HOME/KERNEL/drivers/usb/gadget/legacy
-    $ cd $BB_KERNEL_HOME/KERNEL
-    $ make -j12 ARCH=arm LOCALVERSION=-bone8 CROSS_COMPILE=$BB_KERNEL_HOME/dl/gcc-linaro-5.3-2016.02-x86_64_arm-linux-gnueabihf/bin/arm-linux-gnueabihf-  modules
-    $ scp $BB_KERNEL_HOME/KERNEL/drivers/usb/gadget/legacy/gadgetfs.ko root@<BB_IP>:
-    $ scp $UMAP2_HOME/gadget/start_gadgetfs.sh root@<BB_IP>:
+At this point, you should have:
 
-Now, on the device:
+- umap2 installed.
+- the kernel module is at: /root/gadgetfs.ko
 
-- Install Umap2 on the device (as described in the main README.rst).
-- `chmod +x ~/start_gadgetfs.sh`
+Running Umap2
+-------------
 
-At this point, you should have Umap2, modified gadgetfs module and a script to
-run it on the BeagleBone Black device.
+Before you run Umap2, you need to unload each module that uses the USB gadget
+subsystem, and load the modified gadgetfs module.
+You can use the following script to do that:
 
-You need to run the **~/start_gadgetfs.sh** before you start running Umap2.
-It will unload other drivers that use the gadget subsystem and load
-our gadgetfs module instead.
+::
 
-That's it. You can now run Umap2 from the BeagleBone.
-Now specify ``-P gadgetfs`` to the umap2 applications
-in order to use the gadgetfs module instead of the Facedancer.
+  $ $UMAP2_HOME/gadget/start_gadgetfs.sh
+
+Once the new module is loaded,
+you can run Umap2 as described in the README.rst in the root of the repository,
+But specify ``-P gadgetfs`` in the command line
+to use gadgetfs as the physical layer of Umap2.

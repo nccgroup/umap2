@@ -1,4 +1,9 @@
 #!/bin/sh
+#
+# start_gadgetfs.sh
+# This file was written for BeagleBone black running Debian,
+# It might not work on other platforms / operating systems
+#
 
 unload_driver() {
     if lsmod | grep $1 > /dev/null; then
@@ -14,30 +19,36 @@ umount_dir() {
     fi
 }
 
-echo "- Stoping services"
-systemctl stop serial-getty@ttyGS0.service > /dev/null
+MODULE_PATH = /root/gadgetfs.ko
 
-[ -d /sys/kernel/config ] && umount_dir /sys/kernel/config
+if [ -f $MODULE_PATH ]; then
+    echo "- Stoping services"
+    systemctl stop serial-getty@ttyGS0.service > /dev/null
 
-echo "- Unloading USB gadget modules"
-unload_driver g_multi
-unload_driver usb_f_acm
-unload_driver u_serial
-unload_driver usb_f_rndis
-unload_driver usb_f_mass_storage
-unload_driver u_ether
-unload_driver libcomposite
+    [ -d /sys/kernel/config ] && umount_dir /sys/kernel/config
+
+    echo "- Unloading USB gadget modules"
+    unload_driver g_multi
+    unload_driver usb_f_acm
+    unload_driver u_serial
+    unload_driver usb_f_rndis
+    unload_driver usb_f_mass_storage
+    unload_driver u_ether
+    unload_driver libcomposite
 
 
-if [ -d /dev/gadget ]; then
-    umount_dir /dev/gadget
-    unload_driver gadgetfs
+    if [ -d /dev/gadget ]; then
+        umount_dir /dev/gadget
+        unload_driver gadgetfs
+    else
+        mkdir /dev/gadget
+    fi
+    echo "- Loading modified gadgetfs driver"
+    insmod /root/gadgetfs.ko
+    echo "- Mounting gadgetfs to /dev/gadget"
+    mount -t gadgetfs none /dev/gadget
+
+    echo "-- System is ready for Umap2 --"
 else
-    mkdir /dev/gadget
+    echo "$MODULE_PATH was not found, not performing changes"
 fi
-echo "- Loading modified gadgetfs driver"
-insmod /root/gadgetfs.ko
-echo "- Mounting gadgetfs to /dev/gadget"
-mount -t gadgetfs none /dev/gadget
-
-echo "-- System is ready for Umap2 --"
