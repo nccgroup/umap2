@@ -2,7 +2,7 @@
 Scan USB host for vendor specific device support
 
 Usage:
-    umap2vsscan -P=PHY_INFO [-q] [-d=DB_FILE] [-s=VID:PID] [-t=TIMEOUT] [-z|-b=DELAY] [-r=RESUME_FILE] [-o=OS] [-v ...]
+    umap2vsscan -P=PHY_INFO [-q] [-d=DB_FILE] [-s=VID:PID] [-t=TIMEOUT] [-z|-b=DELAY] [-r=RESUME_FILE] [-o=OS]  [-e] [-v ...]
 
 Options:
     -P --phy PHY_INFO           physical layer info, see list below
@@ -15,6 +15,7 @@ Options:
     -z --single_step            wait for keypress between each test
     -b --between DELAY          delay in seconds to wait between tests
     -o --os OS                  specify the host OS (default: Linux)
+    -e --exhaustive             go over each (vid, pid) combination - do not skip device if its driver is in the supported list
 
 Physical layer:
     fd:<serial_port>        use facedancer connected to given serial port
@@ -156,14 +157,14 @@ class Umap2VSScanApp(Umap2App):
             vid_start = int(vid.split('-')[0], 16)
             vid_end = int(vid.split('-')[1], 16)
             self.logger.debug('vid start=%04x, vid_end=%04x' % (vid_start, vid_end))
-            vid = range(vid_start, vid_end)
+            vid = xrange(vid_start, vid_end)
         else:
             vid = [int(vid, 16)]
         if '-' in pid:
             pid_start = int(pid.split('-')[0], 16)
             pid_end = int(pid.split('-')[1], 16)
             self.logger.debug('pid start=%04x, pid_end=%x' % (pid_start, pid_end))
-            pid = range(pid_start, pid_end)
+            pid = xrange(pid_start, pid_end)
         else:
             pid = [int(pid, 16)]
         for v in vid:
@@ -232,6 +233,11 @@ class Umap2VSScanApp(Umap2App):
             db_entry.os = self.os
             vid = db_entry.vid
             pid = db_entry.pid
+            driver = db_entry.drivers[self.os]
+            if not self.options['--exhaustive']:
+                if driver and driver in self.scan_session.supported_drivers:
+                    self.debug('skipping entry: %s' % db_entry)
+                    continue
             self.logger.always('Testing support for %s' % db_entry)
             self.setup_packet_received = False
             self.current_usb_function_supported = False
@@ -248,6 +254,7 @@ class Umap2VSScanApp(Umap2App):
             if self.current_usb_function_supported:
                 db_entry.info = self.get_device_info(device)
                 self.scan_session.supported.append(db_entry)
+                self.scan_session.supported_drivers.append(db_entry.drivers[self.os])
             else:
                 db_entry.info = self.get_device_info(device)
                 self.scan_session.unsupported.append(db_entry)
