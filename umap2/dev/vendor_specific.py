@@ -2,11 +2,13 @@
 Contains class definitions to implement a Vendor Specific USB Device.
 '''
 from umap2.core.usb_class import USBClass
-from umap2.core.usb_device import USBDevice
+from umap2.core.usb_device import USBDevice, USBDeviceRequest, Request
 from umap2.core.usb_endpoint import USBEndpoint
 from umap2.core.usb_vendor import USBVendor
 from umap2.core.usb_configuration import USBConfiguration
 from umap2.core.usb_interface import USBInterface
+from umap2.core.usb import interface_class_to_descriptor_type
+import struct
 
 
 class USBVendorSpecificVendor(USBVendor):
@@ -47,10 +49,12 @@ class USBVendorSpecificInterface(USBInterface):
             interface_subclass=1,
             interface_protocol=1,
             interface_string_index=0,
-            endpoints=endpoints,
+            endpoints=[],
             usb_class=USBVendorSpecificClass(app, phy),
             usb_vendor=USBVendorSpecificVendor(app, phy)
         )
+        self.virtual_endpoints = endpoints
+        self.endpoints = []
 
     def handle_buffer_available(self):
         pass
@@ -62,6 +66,45 @@ class USBVendorSpecificInterface(USBInterface):
     def handle_set_interface_request(self, req):
         self.always('set interface request')
         self.usb_function_supported()
+
+    # Table 9-12 of USB 2.0 spec (pdf page 296)
+    def get_descriptor(self, usb_type='fullspeed', valid=False):
+        '''
+        override the get_descriptor handler - so it would have access to the virtual_endpoints
+        '''
+
+        bLength = 9
+        bDescriptorType = 4
+        bNumEndpoints = len(self.virtual_endpoints)
+
+        d = struct.pack(
+            '<BBBBBBBBB',
+            bLength,  # length of descriptor in bytes
+            bDescriptorType,  # descriptor type 4 == interface
+            self.number,
+            self.alternate,
+            bNumEndpoints,
+            self.iclass,
+            self.subclass,
+            self.protocol,
+            self.string_index
+        )
+
+        if self.iclass:
+            iclass_desc_num = interface_class_to_descriptor_type(self.iclass)
+            if iclass_desc_num:
+                desc = self.descriptors[iclass_desc_num]
+                if callable(desc):
+                    desc = desc()
+                d += desc
+
+        for e in self.cs_interfaces:
+            d += e.get_descriptor(usb_type, valid)
+
+        for e in self.virtual_endpoints:
+            d += e.get_descriptor(usb_type, valid)
+
+        return d
 
 
 class USBVendorSpecificDevice(USBDevice):
@@ -94,6 +137,30 @@ class USBVendorSpecificDevice(USBDevice):
                 )
             ],
         )
+
+    def handle_request(self, buf):
+        '''
+        override the handle_request - in case a request is directed to an endpoint - we mark as supported
+        '''
+        req = USBDeviceRequest(buf)
+
+        # figure out the intended recipient
+        req_type = req.get_type()
+        recipient_type = req.get_recipient()
+
+        if req_type == Request.type_standard:    # for standard requests we lookup the recipient by index
+            if recipient_type == Request.recipient_endpoint:
+                self.usb_function_supported()
+                self.self.phy.stall_ep0()
+                return
+
+        return super(USBVendorSpecificDevice, self).handle_request(buf)
+
+    def handle_data_available(self, ep_num, data):
+        '''
+        override the ep handler as we are working with virtual endpoints - if data is available for the ep - we mark as supported
+        '''
+        self.usb_function_supported()
 
     def get_endpoint(self, num, direction, transfer_type, max_packet_size=0x40):
         return USBEndpoint(
