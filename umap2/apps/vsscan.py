@@ -256,7 +256,9 @@ class Umap2VSScanApp(Umap2App):
             if self.current_usb_function_supported:
                 db_entry.info = self.get_device_info(device)
                 self.scan_session.supported.append(db_entry)
-                self.scan_session.supported_drivers.append(db_entry.drivers[self.os])
+                driver = db_entry.drivers.get(self.os, None)
+                if driver:
+                    self.scan_session.supported_drivers.append(db_entry.drivers[self.os])
             else:
                 db_entry.info = self.get_device_info(device)
                 self.scan_session.unsupported.append(db_entry)
