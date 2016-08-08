@@ -97,6 +97,7 @@ class _ScanSession(object):
         self.db = []
         self.supported = []
         self.unsupported = []
+        self.supported_drivers = []
         # key: device that got no response
         # value: previous device (if any)
         self.no_response = {}
@@ -233,10 +234,11 @@ class Umap2VSScanApp(Umap2App):
             db_entry.os = self.os
             vid = db_entry.vid
             pid = db_entry.pid
-            driver = db_entry.drivers[self.os]
             if not self.options['--exhaustive']:
+                driver = db_entry.drivers.get(self.os, None)
                 if driver and driver in self.scan_session.supported_drivers:
-                    self.debug('skipping entry: %s' % db_entry)
+                    self.logger.always('skipping entry: %s' % db_entry)
+                    self.sync_and_increment_session()
                     continue
             self.logger.always('Testing support for %s' % db_entry)
             self.setup_packet_received = False
