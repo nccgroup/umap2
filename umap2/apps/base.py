@@ -14,8 +14,11 @@ from umap2.phy.gadgetfs.gadgetfs_phy import GadgetFsPhy
 
 class Umap2App(object):
 
-    def __init__(self, docstring):
-        self.options = docopt.docopt(docstring)
+    def __init__(self, docstring=None):
+        if docstring is not None:
+            self.options = docopt.docopt(docstring)
+        else:
+            self.options = {}
         self.umap_classes = [
             'audio',
             'cdc',
