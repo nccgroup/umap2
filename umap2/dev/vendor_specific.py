@@ -151,7 +151,7 @@ class USBVendorSpecificDevice(USBDevice):
         if req_type == Request.type_standard:    # for standard requests we lookup the recipient by index
             if recipient_type == Request.recipient_endpoint:
                 self.usb_function_supported()
-                self.self.phy.stall_ep0()
+                #self.phy.stall_ep0()
                 return
 
         return super(USBVendorSpecificDevice, self).handle_request(buf)
