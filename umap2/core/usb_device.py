@@ -438,7 +438,7 @@ class USBDevice(USBBaseActor):
         self.debug('Received SYNCH_FRAME request')
 
 
-class USBDeviceRequest:
+class USBDeviceRequest(object):
 
     setup_request_types = {
         Request.type_standard: 'standard',
