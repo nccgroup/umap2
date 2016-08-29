@@ -1,10 +1,10 @@
 '''
 Hub templates
 '''
+from umap2.core.usb import DescriptorType
 from kitty.model import UInt8, LE16, RandomBytes
 from kitty.model import Size
 from generic import Descriptor
-from enum import _DescriptorTypes
 
 
 # hub_descriptor
@@ -29,7 +29,7 @@ from enum import _DescriptorTypes
 
 hub_descriptor = Descriptor(
     name='hub_descriptor',
-    descriptor_type=_DescriptorTypes.HUB,
+    descriptor_type=DescriptorType.hub,
     fields=[
         Size(name='bNbrPorts', sized_field='DeviceRemovable', length=8, calc_func=lambda x: len(x) * 7),
         LE16(name='wHubCharacteristics', value=0x0000),

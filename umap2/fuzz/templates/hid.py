@@ -17,6 +17,7 @@
 '''
 Legos to generate USB HID reports
 '''
+from umap2.core.usb import DescriptorType
 from kitty.model import Template, Container, OneOf, TakeFrom
 from kitty.model import MutableField
 from kitty.model import UInt8, LE16, BitField, Static
@@ -24,7 +25,6 @@ from kitty.model import ENC_INT_LE
 from kitty.core import KittyException
 from random import Random
 from generic import DynamicInt, Descriptor
-from enum import _DescriptorTypes
 
 
 opcodes = {
@@ -163,12 +163,12 @@ def GenerateHidReport(report_str, name=None):
 
 hid_descriptor = Descriptor(
     name='hid_descriptor',
-    descriptor_type=_DescriptorTypes.HID,
+    descriptor_type=DescriptorType.hid,
     fields=[
         DynamicInt('bcdHID', LE16(value=0x0110)),
         DynamicInt('bCountryCode', UInt8(value=0x00)),
         DynamicInt('bNumDescriptors', UInt8(value=0x01)),
-        DynamicInt('bDescriptorType2', UInt8(value=_DescriptorTypes.HID_REPORT)),
+        DynamicInt('bDescriptorType2', UInt8(value=DescriptorType.hid_report)),
         DynamicInt('wDescriptorLength', LE16(value=0x27)),
     ])
 
