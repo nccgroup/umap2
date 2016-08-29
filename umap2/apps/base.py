@@ -10,6 +10,7 @@ from serial import Serial, PARITY_NONE
 
 from umap2.phy.facedancer.max342x_phy import Max342xPhy
 from umap2.phy.gadgetfs.gadgetfs_phy import GadgetFsPhy
+from umap2.utils.ulogger import set_default_handler_level
 
 
 class Umap2App(object):
@@ -45,11 +46,11 @@ class Umap2App(object):
         verbose = self.options.get('--verbose', 0)
         logger = logging.getLogger('umap2')
         if verbose in levels:
-            logger.setLevel(levels[verbose])
+            set_default_handler_level(levels[verbose])
         else:
-            logger.setLevel(logging.VERBOSE)
+            set_default_handler_level(logging.VERBOSE)
         if self.options.get('--quiet', False):
-            logger.setLevel(logging.WARNING)
+            set_default_handler_level(logging.WARNING)
         return logger
 
     def load_phy(self, phy_string):
