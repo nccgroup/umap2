@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import os
 import unittest
 from test_devices import *
