@@ -222,6 +222,17 @@ def build_notification(req_type, notification_code, value, index, data=None):
     return struct.pack('<BBHHH', req_type, notification_code, value, index, len(data) & 0xffff) + data
 
 
+class USBCDCControlInterface(USBInterface):
+
+    @mutable('cdc_control_interface_descriptor')
+    def get_descriptor(self, usb_type='fullspeed', valid=False):
+        '''
+        We override get_descriptor so we can get more complex descriptors
+        in fuzzing (with CS Interfaces)
+        '''
+        return super(USBCDCControlInterface, self).get_descriptor(usb_type, valid=True)
+
+
 class USBCDCDevice(USBDevice):
     '''
     There are many subclasses and protocols to the USB CDC device.
