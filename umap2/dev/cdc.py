@@ -13,16 +13,79 @@ from umap2.core.usb_configuration import USBConfiguration
 from umap2.core.usb_interface import USBInterface
 from umap2.core.usb_endpoint import USBEndpoint
 from umap2.core.usb_cs_interface import USBCSInterface
+from umap2.fuzz.helpers import mutable
 
 
 class USBCDCClass(USBClass):
     name = 'CDCClass'
 
+    SEND_ENCAPSULATED_COMMAND = 0x00
+    GET_ENCAPSULATED_RESPONSE = 0x01
+    SET_COMM_FEATURE = 0x02
+    GET_COMM_FEATURE = 0x03
+    CLEAR_COMM_FEATURE = 0x04
+    SET_AUX_LINE_STATE = 0x10
+    SET_HOOK_STATE = 0x11
+    PULSE_SETUP = 0x12
+    SEND_PULSE = 0x13
+    SET_PULSE_TIME = 0x14
+    RING_AUX_JACK = 0x15
+    SET_LINE_CODING = 0x20
+    GET_LINE_CODING = 0x21
+    SET_CONTROL_LINE_STATE = 0x22
+    SEND_BREAK = 0x23
+    SET_RINGER_PARMS = 0x30
+    GET_RINGER_PARMS = 0x31
+    SET_OPERATION_PARMS = 0x32
+    GET_OPERATION_PARMS = 0x33
+    SET_LINE_PARMS = 0x34
+    GET_LINE_PARMS = 0x35
+    DIAL_DIGITS = 0x36
+    SET_UNIT_PARAMETER = 0x37
+    GET_UNIT_PARAMETER = 0x38
+    CLEAR_UNIT_PARAMETER = 0x39
+    GET_PROFILE = 0x3A
+    SET_ETHERNET_MULTICAST_FILTERS = 0x40
+    SET_ETHERNET_POWER_MANAGEMENT_PATTERN_FILTER = 0x41
+    GET_ETHERNET_POWER_MANAGEMENT_PATTERN_FILTER = 0x42
+    SET_ETHERNET_PACKET_FILTER = 0x43
+    GET_ETHERNET_STATISTIC = 0x44
+    SET_ATM_DATA_FORMAT = 0x50
+    GET_ATM_DEVICE_STATISTICS = 0x51
+    SET_ATM_DEFAULT_VC = 0x52
+    GET_ATM_VC_STATISTICS = 0x53
+    GET_NTB_PARAMETERS = 0x80
+    GET_NET_ADDRESS = 0x81
+    SET_NET_ADDRESS = 0x82
+    GET_NTB_FORMAT = 0x83
+    SET_NTB_FORMAT = 0x84
+    GET_NTB_INPUT_SIZE = 0x85
+    SET_NTB_INPUT_SIZE = 0x86
+    GET_MAX_DATAGRAM_SIZE = 0x87
+    SET_MAX_DATAGRAM_SIZE = 0x88
+    GET_CRC_MODE = 0x89
+    SET_CRC_MODE = 0x8A
+
+    def __init__(self, app, phy):
+        super(USBCDCClass, self).__init__(app, phy)
+        self.encapsulated_response = b''
+
     def setup_local_handlers(self):
         self.local_handlers = {
-            0x20: self.handle_cdc_set_line_coding,
-            0x22: self.handle_cdc_set_control_line_state,
+            self.SEND_ENCAPSULATED_COMMAND: self.handle_send_encapsulated_command,
+            self.GET_ENCAPSULATED_RESPONSE: self.handle_get_encapsulated_response,
+            self.SET_LINE_CODING: self.handle_cdc_set_line_coding,
+            self.GET_LINE_CODING: self.handle_cdc_set_control_line_state,
         }
+        self.encapsulated_response = b''
+
+    def handle_send_encapsulated_command(self, req):
+        self.encapsulated_command = req.data
+        return b''
+
+    @mutable('cdc_get_encapsulated_response')
+    def handle_get_encapsulated_response(self, req):
+        return self.encapsulated_response
 
     def handle_cdc_set_line_coding(self, req):
         return b''
@@ -150,13 +213,13 @@ class FunctionalDescriptor(USBCSInterface):
         return 'FunctionalDescriptor-%02x' % subtype
 
 
-def management_notification(req_type, notification_code, value, index, data=None):
+def build_notification(req_type, notification_code, value, index, data=None):
     '''
     Management notification structure is described (per notification) in section 6.3
     '''
     if data is None:
         data = b''
-    return struct.pack('<BBHHH', req_type, notification_code, value, index, len(data)) + data
+    return struct.pack('<BBHHH', req_type, notification_code, value, index, len(data) & 0xffff) + data
 
 
 class USBCDCDevice(USBDevice):
@@ -270,5 +333,11 @@ class USBCDCDevice(USBDevice):
     def handle_ep2_buffer_available(self):
         self.debug('ep2 buffer available')
 
+    @mutable('cdc_notification')
     def handle_ep3_buffer_available(self):
-        self.debug('ep3 buffer available')
+        '''
+        by default, send management notification endpoint
+        '''
+        self.debug('sending network connection notification')
+        resp = build_notification(0xa1, NotificationCodes.NetworkConnection, 1, self.bDataInterface)
+        self.send_on_endpoint(3, resp)

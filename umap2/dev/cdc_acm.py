@@ -11,34 +11,7 @@ from umap2.dev.cdc import USBCDCDevice
 from umap2.dev.cdc import CommunicationClassSubclassCodes
 from umap2.dev.cdc import CommunicationClassProtocolCodes
 from umap2.dev.cdc import DataInterfaceClassProtocolCodes
-from umap2.dev.cdc import NotificationCodes
-from umap2.dev.cdc import management_notification
 from umap2.dev.cdc import FunctionalDescriptor as FD
-from umap2.fuzz.helpers import mutable
-
-
-class USB_CDC_ACM_Class(USBCDCClass):
-    name = 'USB CDC Comm Class'
-
-    def __init__(self, app, phy):
-        super(USB_CDC_ACM_Class, self).__init__(app, phy)
-        self.encapsulated_response = b''
-
-    def setup_local_handlers(self):
-        super(USB_CDC_ACM_Class, self).setup_local_handlers()
-        self.local_handlers.update({
-            0x00: self.handle_send_encapsulated_command,
-            0x01: self.handle_get_encapsulated_response
-            # rest of the requests are optional
-        })
-
-    def handle_send_encapsulated_command(self, req):
-        self.encapsulated_command = req.data
-        return b''
-
-    @mutable('cdc_acm_get_encapsulated_response')
-    def handle_get_encapsulated_response(self, req):
-        return self.encapsulated_response
 
 
 class USB_CDC_ACM_DEVICE(USBCDCDevice):
@@ -50,7 +23,7 @@ class USB_CDC_ACM_DEVICE(USBCDCDevice):
     bDataProtocol = DataInterfaceClassProtocolCodes.NoClassSpecificProtocolRequired
 
     def __init__(self, app, phy, vid=0x2548, pid=0x1001, rev=0x0010, bmCapabilities=0x01, cs_interfaces=None, cdc_cls=None, **kwargs):
-        cdc_cls = USB_CDC_ACM_Class(app, phy)
+        cdc_cls = USBCDCClass(app, phy)
         cs_interfaces = [
             # Header Functional Descriptor
             FD(app, phy, FD.Header, '\x01\x01'),
@@ -80,14 +53,6 @@ class USB_CDC_ACM_DEVICE(USBCDCDevice):
             2,
             unhexlify('ffffffffffffaabbccddeeff08060001080006040001600308aaaaaac0a80065000000000000c0a80100')
         )
-
-    def handle_ep3_buffer_available(self):
-        '''
-        management notification endpoint...
-        '''
-        self.debug('sending network connection notification')
-        resp = management_notification(0xa1, NotificationCodes.NetworkConnection, 1, self.bDataInterface)
-        self.send_on_endpoint(3, resp)
 
 
 usb_device = USB_CDC_ACM_DEVICE
