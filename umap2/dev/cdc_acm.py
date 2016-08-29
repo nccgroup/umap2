@@ -6,7 +6,6 @@ and in PSTN120.pdf.
 '''
 import struct
 from binascii import unhexlify
-from umap2.core.usb_cs_interface import USBCSInterface
 from umap2.dev.cdc import USBCDCClass
 from umap2.dev.cdc import USBCDCDevice
 from umap2.dev.cdc import CommunicationClassSubclassCodes
@@ -14,6 +13,7 @@ from umap2.dev.cdc import CommunicationClassProtocolCodes
 from umap2.dev.cdc import DataInterfaceClassProtocolCodes
 from umap2.dev.cdc import NotificationCodes
 from umap2.dev.cdc import management_notification
+from umap2.dev.cdc import FunctionalDescriptor as FD
 from umap2.fuzz.helpers import mutable
 
 
@@ -53,11 +53,11 @@ class USB_CDC_ACM_DEVICE(USBCDCDevice):
         cdc_cls = USB_CDC_ACM_Class(app, phy)
         cs_interfaces = [
             # Header Functional Descriptor
-            USBCSInterface('Header', app, phy, '\x00\x01\x01'),
+            FD(app, phy, FD.Header, '\x01\x01'),
             # Call Management Functional Descriptor
-            USBCSInterface('CMF', app, phy, struct.pack('BBB', 1, bmCapabilities, USBCDCDevice.bDataInterface)),
-            USBCSInterface('ACMF1', app, phy, struct.pack('BB', 2, bmCapabilities)),
-            USBCSInterface('ACMF2', app, phy, struct.pack('BBB', 6, USBCDCDevice.bControlInterface, USBCDCDevice.bDataInterface)),
+            FD(app, phy, FD.CM, struct.pack('BB', bmCapabilities, USBCDCDevice.bDataInterface)),
+            FD(app, phy, FD.ACM, struct.pack('B', bmCapabilities)),
+            FD(app, phy, FD.UN, struct.pack('BB', USBCDCDevice.bControlInterface, USBCDCDevice.bDataInterface)),
         ]
         super(USB_CDC_ACM_DEVICE, self).__init__(app, phy, vid, pid, rev, bmCapabilities=0x03, cs_interfaces=cs_interfaces, cdc_cls=cdc_cls, **kwargs)
         self.receive_buffer = b''

@@ -12,6 +12,7 @@ from umap2.core.usb_device import USBDevice
 from umap2.core.usb_configuration import USBConfiguration
 from umap2.core.usb_interface import USBInterface
 from umap2.core.usb_endpoint import USBEndpoint
+from umap2.core.usb_cs_interface import USBCSInterface
 
 
 class USBCDCClass(USBClass):
@@ -102,6 +103,51 @@ class NotificationCodes:
     CallStateChange = 0x28
     LineStateChange = 0x29
     ConnectionSpeedChange = 0x2a
+
+
+class FunctionalDescriptor(USBCSInterface):
+    '''
+    The functional descriptors are sent as Class-Specific descriptors.
+    '''
+    Header = 0x00
+    CM = 0x01  # Call Management Functional Descriptor.
+    ACM = 0x02  # Abstract Control Management Functional Descriptor.
+    DLM = 0x03  # Direct Line Management Functional Descriptor.
+    TR = 0x04  # Telephone Ringer Functional Descriptor.
+    TCLSRC = 0x05  # Telephone Call and Line State Reporting Capabilities Functional Descriptor.
+    UN = 0x06  # Union Functional Descriptor
+    CS = 0x07  # Country Selection Functional Descriptor
+    TOM = 0x08  # Telephone Operational Modes Functional Descriptor
+    USBT = 0x09  # USB Terminal Functional Descriptor
+    NCT = 0x0A  # Network Channel Terminal Descriptor
+    PU = 0x0B  # Protocol Unit Functional Descriptor
+    EU = 0x0C  # Extension Unit Functional Descriptor
+    MCM = 0x0D  # Multi-Channel Management Functional Descriptor
+    CCM = 0x0E  # CAPI Control Management Functional Descriptor
+    EN = 0x0F  # Ethernet Networking Functional Descriptor
+    ATMN = 0x10  # ATM Networking Functional Descriptor
+    WHCM = 0x11  # Wireless Handset Control Model Functional Descriptor
+    MDLM = 0x12  # Mobile Direct Line Model Functional Descriptor
+    MDLMD = 0x13  # MDLM Detail Functional Descriptor
+    DMM = 0x14  # Device Management Model Functional Descriptor
+    OBEX = 0x15  # OBEX Functional Descriptor
+    CMDS = 0x16  # Command Set Functional Descriptor
+    CMDSD = 0x17  # Command Set Detail Functional Descriptor
+    TC = 0x18  # Telephone Control Model Functional Descriptor
+    OBSEXSI = 0x19  # OBEX Service Identifier Functional Descriptor
+    NCM = 0x1A  # NCM Functional Descriptor
+
+    def __init__(self, app, phy, subtype, cs_config):
+        name = FunctionalDescriptor.get_subtype_name(subtype)
+        cs_config = struct.pack('B', subtype) + cs_config
+        super(FunctionalDescriptor, self).__init__(name, app, phy, cs_config)
+
+    @classmethod
+    def get_subtype_name(cls, subtype):
+        for vn in dir(cls):
+            if getattr(cls, vn) == subtype:
+                return vn
+        return 'FunctionalDescriptor-%02x' % subtype
 
 
 def management_notification(req_type, notification_code, value, index, data=None):
