@@ -21,7 +21,7 @@ class Umap2App(object):
             self.options = {}
         self.umap_classes = [
             'audio',
-            'cdc',
+            'cdc_acm',
             'ftdi',
             'hub',
             'keyboard',
