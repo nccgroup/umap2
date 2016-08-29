@@ -29,7 +29,6 @@ class Umap2App(object):
             'mtp',
             'printer',
             'smartcard',
-            'vendor_specific'
         ]
         self.logger = self.get_logger()
         self.num_processed = 0
