@@ -168,7 +168,7 @@ hid_descriptor = Descriptor(
         DynamicInt('bcdHID', LE16(value=0x0110)),
         DynamicInt('bCountryCode', UInt8(value=0x00)),
         DynamicInt('bNumDescriptors', UInt8(value=0x01)),
-        DynamicInt('bDescriptorType2', UInt8(value=DescriptorType.hid_report)),
+        DynamicInt('bDescriptorType2', UInt8(value=DescriptorType.hid)),
         DynamicInt('wDescriptorLength', LE16(value=0x27)),
     ])
 

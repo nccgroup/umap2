@@ -2,8 +2,8 @@
 Audio device templates
 '''
 from umap2.core.usb import DescriptorType
-from kitty.model import UInt8, LE16, RandomBytes, BitField
-from kitty.model import Template, Repeat, List, Container
+from kitty.model import UInt8, LE16, RandomBytes, BitField, Static
+from kitty.model import Template, Repeat, List, Container, ForEach, OneOf
 from kitty.model import ElementCount, SizeInBytes
 from kitty.model import ENC_INT_LE
 from hid import GenerateHidReport
@@ -127,7 +127,7 @@ audio_hid_descriptor = Descriptor(
         DynamicInt('bcdHID', LE16(value=0x1001)),
         DynamicInt('bCountryCode', UInt8(value=0x00)),
         DynamicInt('bNumDescriptors', UInt8(value=0x01)),
-        DynamicInt('bDescriptorType2', UInt8(value=DescriptorType.hid_report)),
+        DynamicInt('bDescriptorType2', UInt8(value=DescriptorType.hid)),
         DynamicInt('wDescriptorLength', LE16(value=0x2b)),
     ]
 )
@@ -245,6 +245,21 @@ audio_control_interface_descriptor = Template(
                     ]
                 ),
                 # .. todo: 4.3.2.6
+                OneOf(
+                    fields=[
+                        Static(''),
+                        SubDescriptor(
+                            name='junk',
+                            descriptor_type=DescriptorType.cs_interface,
+                            fields=[
+                                UInt8(name='bDesciptorSubType', value=0x15),
+                                ForEach('bDesciptorSubType', fields=[
+                                    RandomBytes(name='junk', value='\x01', min_length=0, max_length=250),
+                                ])
+                            ]
+                        ),
+                    ]
+                )
             ]
         ),
         # .. todo: endpoint descriptor??

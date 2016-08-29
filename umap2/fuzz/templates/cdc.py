@@ -4,10 +4,10 @@ CDC Device tempaltes
 from umap2.dev.cdc import FunctionalDescriptor, CommunicationClassSubclassCodes
 from umap2.core.usb_class import USBClass
 from umap2.core.usb import DescriptorType
-from kitty.model import UInt8, LE16, BitField
-from kitty.model import Template, Repeat, List, Container
-from generic import Descriptor, SubDescriptor
+from kitty.model import UInt8, LE16, RandomBytes, BitField, Static
+from kitty.model import Template, Repeat, List, Container, ForEach, OneOf
 from kitty.model import ElementCount
+from generic import Descriptor, SubDescriptor
 
 
 cdc_control_interface_descriptor = Template(
@@ -70,6 +70,22 @@ cdc_control_interface_descriptor = Template(
                         LE16(name='wNumberMCFilters', value=0),
                         UInt8(name='bNumberPowerFilters', value=0)
                     ]),
+                # .. todo: 4.3.2.6
+                OneOf(
+                    fields=[
+                        Static(''),
+                        SubDescriptor(
+                            name='junk',
+                            descriptor_type=DescriptorType.cs_interface,
+                            fields=[
+                                UInt8(name='bDesciptorSubType', value=0x15),
+                                ForEach('bDesciptorSubType', fields=[
+                                    RandomBytes(name='junk', value='\x01', min_length=0, max_length=250),
+                                ])
+                            ]
+                        ),
+                    ]
+                )
             ]
         ),
         Container(name='endpoints', fields=[
