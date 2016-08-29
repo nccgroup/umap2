@@ -142,6 +142,7 @@ class BaseDeviceTests(object):
         self.device.handle_request(request)
         ev2 = self.get_single_response(0, response_length)
         self.assertEqual(ev1.data, ev2.data)
+        return ev2.data
 
     def testGetDeviceDescriptorConsistent(self):
         self._testGetDescriptorConsistent(build_get_device_descriptor(), DESCRIPTOR_LENGTH_DEVICE)
@@ -149,7 +150,9 @@ class BaseDeviceTests(object):
     def testGetConfigurationDescriptorConsistent(self):
         self.device.handle_request(build_get_device_descriptor())
         self.get_single_response(0, DESCRIPTOR_LENGTH_DEVICE)
-        self._testGetDescriptorConsistent(build_get_configuration_descriptor(0), DESCRIPTOR_LENGTH_CONFIGURATION)
+        configuration_desc = self._testGetDescriptorConsistent(build_get_configuration_descriptor(0), DESCRIPTOR_LENGTH_CONFIGURATION)
+        full_len = struct.unpack('<H', configuration_desc[2:4])[0]
+        self._testGetDescriptorConsistent(build_get_configuration_descriptor(0, full_len), full_len)
 
 
 class AudioDeviceTests(unittest.TestCase, BaseDeviceTests):
