@@ -279,7 +279,7 @@ class USBCDCDevice(USBDevice):
                     index=1, string='Emulated CDC',
                     interfaces=[
                         # Control interface
-                        USBInterface(
+                        USBCDCControlInterface(
                             app=app, phy=phy,
                             interface_number=self.bControlInterface, interface_alternate=0,
                             interface_class=USBClass.CDC,
