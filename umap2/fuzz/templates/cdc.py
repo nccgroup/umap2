@@ -7,6 +7,7 @@ from umap2.core.usb import DescriptorType
 from kitty.model import UInt8, LE16, RandomBytes, BitField, Static
 from kitty.model import Template, Repeat, List, Container, ForEach, OneOf
 from kitty.model import ElementCount
+from kitty.model import MutableField
 from generic import Descriptor, SubDescriptor
 
 
@@ -101,3 +102,13 @@ cdc_control_interface_descriptor = Template(
         ])
     ]
 )
+
+cdc_notification = Template(
+    name='cdc_notification',
+    fields=[
+        OneOf(
+            fields=[
+                MutableField(name='mutable notification', value=b'\xa1\x00\x01\x00\x01\x00\x01\x00\x00'),
+            ]),
+    ])
+
