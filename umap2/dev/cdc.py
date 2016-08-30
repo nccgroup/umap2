@@ -74,10 +74,12 @@ class USBCDCClass(USBClass):
         self.local_handlers = {
             self.SEND_ENCAPSULATED_COMMAND: self.handle_send_encapsulated_command,
             self.GET_ENCAPSULATED_RESPONSE: self.handle_get_encapsulated_response,
+            self.SET_CONTROL_LINE_STATE: self.handle_set_control_line_state,
             self.SET_LINE_CODING: self.handle_cdc_set_line_coding,
             self.GET_LINE_CODING: self.handle_cdc_set_control_line_state,
         }
         self.encapsulated_response = b''
+        self.control_line_state = 0x0
 
     def handle_send_encapsulated_command(self, req):
         self.encapsulated_command = req.data
@@ -86,6 +88,10 @@ class USBCDCClass(USBClass):
     @mutable('cdc_get_encapsulated_response')
     def handle_get_encapsulated_response(self, req):
         return self.encapsulated_response
+
+    def handle_set_control_line_state(self, req):
+        self.control_line_state = req.value
+        return b''
 
     def handle_cdc_set_line_coding(self, req):
         return b''
