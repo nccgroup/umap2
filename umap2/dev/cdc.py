@@ -294,7 +294,7 @@ class USBCDCDevice(USBDevice):
                                     sync_type=USBEndpoint.sync_type_none,
                                     usage_type=USBEndpoint.usage_type_data,
                                     max_packet_size=0x40,
-                                    interval=0x20,
+                                    interval=9,
                                     handler=self.handle_ep3_buffer_available
                                 )
                             ],
