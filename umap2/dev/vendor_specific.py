@@ -55,6 +55,7 @@ class USBVendorSpecificInterface(USBInterface):
         )
         self.virtual_endpoints = endpoints
         self.endpoints = []
+        self.setup_request_handlers()
 
     def handle_buffer_available(self):
         pass
@@ -105,6 +106,14 @@ class USBVendorSpecificInterface(USBInterface):
             d += e.get_descriptor(usb_type, valid)
 
         return d
+
+    def setup_request_handlers(self):
+        self.request_handlers = {
+            x: self.handle_generic for x in range(256)
+        }
+
+    def handle_generic(self, req):
+        self.always('Generic handler - req: %s' % req)
 
 
 class USBVendorSpecificDevice(USBDevice):
