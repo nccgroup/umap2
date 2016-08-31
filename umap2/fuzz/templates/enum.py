@@ -1,6 +1,7 @@
 '''
 Tempaltes related to generic enumeration stage
 '''
+from umap2.core.usb import DescriptorType
 # fields
 from kitty.model import LE16, UInt8, BitField, String, RandomBytes
 # containers
@@ -12,30 +13,11 @@ from kitty.model import StrEncodeEncoder, ENC_INT_LE
 from generic import Descriptor, SubDescriptor
 
 
-class _DescriptorTypes:
-
-    '''Descriptor types [Section 9.4, table 9.5]'''
-
-    DEVICE = 0x1
-    CONFIGURATION = 0x2
-    STRING = 0x3
-    INTERFACE = 0x4
-    ENDPOINT = 0x5
-    DEVICE_QUALIFIER = 0x6
-    OTHER_SPEED_CONFIGURATION = 0x7
-    INTERFACE_POWER = 0x8
-    HID = 0x21
-    HID_REPORT = 0x22
-    CS_INTERFACE = 0x24  # usbcdc11.pdf table 24
-    CS_ENDPOINT = 0x25  # usbcdc11.pdf table 24
-    HUB = 0x29
-
-
 # Device descriptor
 # Section 9.6.1, page 261
 device_descriptor = Descriptor(
     name='device_descriptor',
-    descriptor_type=_DescriptorTypes.DEVICE,
+    descriptor_type=DescriptorType.device,
     fields=[
         LE16(name='bcdUSB', value=0x0100),  # USB 2.0 is reported as 0x0200, USB 1.1 as 0x0110 and USB 1.0 as 0x0100
         UInt8(name='bDeviceClass', value=0),
@@ -55,7 +37,7 @@ device_descriptor = Descriptor(
 # Section 9.6.2, page 264
 device_qualifier_descriptor = Descriptor(
     name='device_qualifier_descriptor',
-    descriptor_type=_DescriptorTypes.DEVICE_QUALIFIER,
+    descriptor_type=DescriptorType.device_qualifier,
     fields=[
         LE16(name='bcdUSB', value=0x0100),  # USB 2.0 is reported as 0x0200, USB 1.1 as 0x0110 and USB 1.0 as 0x0100
         UInt8(name='bDeviceClass', value=0),
@@ -72,7 +54,7 @@ configuration_descriptor = Template(
     name='configuration_descriptor',
     fields=[
         UInt8(name='bLength', value=9),
-        UInt8(name='bDescriptorType', value=_DescriptorTypes.CONFIGURATION),
+        UInt8(name='bDescriptorType', value=DescriptorType.configuration),
         SizeInBytes(name='wTotalLength', sized_field='/', length=16, encoder=ENC_INT_LE),
         ElementCount(name='bNumInterfaces', depends_on='interfaces', length=8),
         UInt8(name='bConfigurationValue', value=1),
@@ -83,7 +65,7 @@ configuration_descriptor = Template(
             Container(name='iface and eps', fields=[
                 SubDescriptor(
                     name='interface_descriptor',
-                    descriptor_type=_DescriptorTypes.INTERFACE,
+                    descriptor_type=DescriptorType.interface,
                     fields=[
                         UInt8(name='bInterfaceNumber', value=0),
                         UInt8(name='bAlternateSetting', value=0),
@@ -95,7 +77,7 @@ configuration_descriptor = Template(
                         List(name='endpoints', fields=[
                             SubDescriptor(
                                 name='endpoint_descriptor',
-                                descriptor_type=_DescriptorTypes.ENDPOINT,
+                                descriptor_type=DescriptorType.endpoint,
                                 fields=[
                                     UInt8(name='bEndpointAddress', value=1),
                                     BitField(name='bmAttributes', value=0, length=8),
@@ -113,7 +95,7 @@ configuration_descriptor = Template(
 # Section 9.6.4, page 267
 other_speed_configuration_descriptor = Descriptor(
     name='other_speed_configuration_descriptor',
-    descriptor_type=_DescriptorTypes.OTHER_SPEED_CONFIGURATION,
+    descriptor_type=DescriptorType.other_speed_configuration,
     fields=[
         LE16(name='wTotalLength', value=0xffff),  # TODO: real default size
         UInt8(name='bNumInterfaces', value=0xff),  # TODO: real default size
@@ -128,7 +110,7 @@ other_speed_configuration_descriptor = Descriptor(
 # Section 9.6.6, page 269
 endpoint_descriptor = Descriptor(
     name='endpoint_descriptor',
-    descriptor_type=_DescriptorTypes.ENDPOINT,
+    descriptor_type=DescriptorType.endpoint,
     fields=[
         UInt8(name='bEndpointAddress', value=0),
         BitField(name='bmAttributes', value=0, length=8),
@@ -141,7 +123,7 @@ endpoint_descriptor = Descriptor(
 # Section 9.6.7, page 273
 string_descriptor = Descriptor(
     name='string_descriptor',
-    descriptor_type=_DescriptorTypes.STRING,
+    descriptor_type=DescriptorType.string,
     fields=[
         String(name='bString', value='hello_kitty', encoder=StrEncodeEncoder('utf_16_le'), max_size=254 / 2)
     ])
@@ -149,14 +131,14 @@ string_descriptor = Descriptor(
 
 string_descriptor_zero = Descriptor(
     name='string_descriptor_zero',
-    descriptor_type=_DescriptorTypes.STRING,
+    descriptor_type=DescriptorType.string,
     fields=[
         RandomBytes(name='lang_id', min_length=0, max_length=253, step=3, value='\x04\x09')
     ])
 
 hub_descriptor = Descriptor(
     name='hub_descriptor',
-    descriptor_type=_DescriptorTypes.HUB,
+    descriptor_type=DescriptorType.hub,
     fields=[
         UInt8(name='bNbrPorts', value=4),
         BitField(name='wHubCharacteristics', value=0xe000, length=16),

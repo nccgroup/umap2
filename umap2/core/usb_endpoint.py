@@ -75,9 +75,6 @@ class USBEndpoint(USBBaseActor):
         self.info('in GET_STATUS of endpoint %d' % self.number)
         self.phy.send_on_endpoint(0, b'\x00\x00')
 
-    def set_interface(self, interface):
-        self.interface = interface
-
     def send(self, data):
         self.phy.send_on_endpoint(self.number, data)
 

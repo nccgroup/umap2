@@ -58,7 +58,7 @@ class USBInterface(USBBaseActor):
         self.usb_vendor = usb_vendor
 
         for e in self.endpoints:
-            e.set_interface(self)
+            e.interface = self
             if self.usb_class is None:
                 self.usb_class = e.usb_class
             if self.usb_vendor is None:
@@ -100,7 +100,7 @@ class USBInterface(USBBaseActor):
     def get_descriptor(self, usb_type='fullspeed', valid=False):
 
         bLength = 9
-        bDescriptorType = 4
+        bDescriptorType = DescriptorType.interface
         bNumEndpoints = len(self.endpoints)
 
         d = struct.pack(

@@ -1,13 +1,13 @@
 '''
 Audio device templates
 '''
-from kitty.model import UInt8, LE16, RandomBytes, BitField
-from kitty.model import Template, Repeat, List, Container
+from umap2.core.usb import DescriptorType
+from kitty.model import UInt8, LE16, RandomBytes, BitField, Static
+from kitty.model import Template, Repeat, List, Container, ForEach, OneOf
 from kitty.model import ElementCount, SizeInBytes
 from kitty.model import ENC_INT_LE
 from hid import GenerateHidReport
 from generic import Descriptor, SizedPt, DynamicInt, SubDescriptor
-from enum import _DescriptorTypes
 
 
 class _AC_DescriptorSubTypes:  # AC Interface Descriptor Subtype
@@ -40,7 +40,7 @@ class _AS_DescriptorSubTypes:  # AS Interface Descriptor Subtype
 # TODO: remove?
 audio_header_descriptor = Descriptor(
     name='audio_header_descriptor',
-    descriptor_type=_DescriptorTypes.CS_INTERFACE,
+    descriptor_type=DescriptorType.cs_interface,
     fields=[
         UInt8(name='bDesciptorSubType', value=_AC_DescriptorSubTypes.HEADER),
         LE16(name='bcdADC', value=0x0100),
@@ -51,7 +51,7 @@ audio_header_descriptor = Descriptor(
 
 # TODO: remove?
 audio_input_terminal_descriptor = Descriptor(
-    descriptor_type=_DescriptorTypes.CS_INTERFACE,
+    descriptor_type=DescriptorType.cs_interface,
     name='audio_input_terminal_descriptor',
     fields=[
         UInt8(name='bDesciptorSubType', value=_AC_DescriptorSubTypes.INPUT_TERMINAL),
@@ -67,7 +67,7 @@ audio_input_terminal_descriptor = Descriptor(
 # TODO: remove?
 audio_output_terminal_descriptor = Descriptor(
     name='audio_output_terminal_descriptor',
-    descriptor_type=_DescriptorTypes.CS_INTERFACE,
+    descriptor_type=DescriptorType.cs_interface,
     fields=[
         UInt8(name='bDesciptorSubType', value=_AC_DescriptorSubTypes.OUTPUT_TERMINAL),
         UInt8(name='bTerminalID', value=0x00),
@@ -81,7 +81,7 @@ audio_output_terminal_descriptor = Descriptor(
 # TODO: remove?
 audio_feature_unit_descriptor = Descriptor(
     name='audio_feature_unit_descriptor',
-    descriptor_type=_DescriptorTypes.CS_INTERFACE,
+    descriptor_type=DescriptorType.cs_interface,
     fields=[
         UInt8(name='bDesciptorSubType', value=_AC_DescriptorSubTypes.FEATURE_UNIT),
         UInt8(name='bUnitID', value=0x00),
@@ -96,7 +96,7 @@ audio_feature_unit_descriptor = Descriptor(
 # TODO: remove?
 audio_as_interface_descriptor = Descriptor(
     name='audio_as_interface_descriptor',
-    descriptor_type=_DescriptorTypes.CS_INTERFACE,
+    descriptor_type=DescriptorType.cs_interface,
     fields=[
         UInt8(name='bDesciptorSubType', value=_AS_DescriptorSubTypes.AS_GENERAL),
         UInt8(name='bTerminalLink', value=0x00),
@@ -108,7 +108,7 @@ audio_as_interface_descriptor = Descriptor(
 # TODO: remove?
 audio_as_format_type_descriptor = Descriptor(
     name='audio_as_format_type_descriptor',
-    descriptor_type=_DescriptorTypes.CS_INTERFACE,
+    descriptor_type=DescriptorType.cs_interface,
     fields=[
         UInt8(name='bDesciptorSubType', value=_AS_DescriptorSubTypes.FORMAT_TYPE),
         UInt8(name='bFormatType', value=0x01),
@@ -122,12 +122,12 @@ audio_as_format_type_descriptor = Descriptor(
 
 audio_hid_descriptor = Descriptor(
     name='audio_hid_descriptor',
-    descriptor_type=_DescriptorTypes.HID,
+    descriptor_type=DescriptorType.hid,
     fields=[
         DynamicInt('bcdHID', LE16(value=0x1001)),
         DynamicInt('bCountryCode', UInt8(value=0x00)),
         DynamicInt('bNumDescriptors', UInt8(value=0x01)),
-        DynamicInt('bDescriptorType2', UInt8(value=_DescriptorTypes.HID_REPORT)),
+        DynamicInt('bDescriptorType2', UInt8(value=DescriptorType.hid)),
         DynamicInt('wDescriptorLength', LE16(value=0x2b)),
     ]
 )
@@ -155,7 +155,7 @@ audio_control_interface_descriptor = Template(
     fields=[
         SubDescriptor(
             name='Standard AC interface descriptor',
-            descriptor_type=_DescriptorTypes.INTERFACE,
+            descriptor_type=DescriptorType.interface,
             fields=[
                 UInt8(name='bInterfaceNumber', value=0x00),
                 UInt8(name='bAlternateSetting', value=0x00),
@@ -171,7 +171,7 @@ audio_control_interface_descriptor = Template(
             fields=[
                 SubDescriptor(
                     name='header',
-                    descriptor_type=_DescriptorTypes.CS_INTERFACE,
+                    descriptor_type=DescriptorType.cs_interface,
                     fields=[
                         UInt8(name='bDesciptorSubType', value=0x01),
                         LE16(name='bcdADC', value=0x100),
@@ -182,7 +182,7 @@ audio_control_interface_descriptor = Template(
                 ),
                 SubDescriptor(
                     name='input terminal',
-                    descriptor_type=_DescriptorTypes.CS_INTERFACE,
+                    descriptor_type=DescriptorType.cs_interface,
                     fields=[
                         UInt8(name='bDesciptorSubType', value=0x02),
                         UInt8(name='bTerminalID', value=1),
@@ -196,7 +196,7 @@ audio_control_interface_descriptor = Template(
                 ),
                 SubDescriptor(
                     name='output terminal',
-                    descriptor_type=_DescriptorTypes.CS_INTERFACE,
+                    descriptor_type=DescriptorType.cs_interface,
                     fields=[
                         UInt8(name='bDesciptorSubType', value=0x03),
                         UInt8(name='bTerminalID', value=2),
@@ -208,7 +208,7 @@ audio_control_interface_descriptor = Template(
                 ),
                 SubDescriptor(
                     name='mixer unit',
-                    descriptor_type=_DescriptorTypes.CS_INTERFACE,
+                    descriptor_type=DescriptorType.cs_interface,
                     fields=[
                         UInt8(name='bDesciptorSubType', value=0x04),
                         UInt8(name='bUnitID', value=3),
@@ -223,7 +223,7 @@ audio_control_interface_descriptor = Template(
                 ),
                 SubDescriptor(
                     name='selector unit',
-                    descriptor_type=_DescriptorTypes.CS_INTERFACE,
+                    descriptor_type=DescriptorType.cs_interface,
                     fields=[
                         UInt8(name='bDesciptorSubType', value=0x05),
                         UInt8(name='bUnitID', value=4),
@@ -234,7 +234,7 @@ audio_control_interface_descriptor = Template(
                 ),
                 SubDescriptor(
                     name='feature unit',
-                    descriptor_type=_DescriptorTypes.CS_INTERFACE,
+                    descriptor_type=DescriptorType.cs_interface,
                     fields=[
                         UInt8(name='bDesciptorSubType', value=0x06),
                         UInt8(name='bUnitID', value=5),
@@ -245,6 +245,21 @@ audio_control_interface_descriptor = Template(
                     ]
                 ),
                 # .. todo: 4.3.2.6
+                OneOf(
+                    fields=[
+                        Static(''),
+                        SubDescriptor(
+                            name='junk',
+                            descriptor_type=DescriptorType.cs_interface,
+                            fields=[
+                                UInt8(name='bDesciptorSubType', value=0x15),
+                                ForEach('bDesciptorSubType', fields=[
+                                    RandomBytes(name='junk', value='\x01', min_length=0, max_length=250),
+                                ])
+                            ]
+                        ),
+                    ]
+                )
             ]
         ),
         # .. todo: endpoint descriptor??
