@@ -363,13 +363,37 @@ class USBCDCDevice(USBDevice):
     bDataSubclass = 0
     bControlProtocol = CommunicationClassProtocolCodes.NoClassSpecificProtocolRequired
     bDataProtocol = DataInterfaceClassProtocolCodes.NoClassSpecificProtocolRequired
+    _default_cls = None
 
-    def __init__(self, app, phy, vid=0x2548, pid=0x1001, rev=0x0010, bmCapabilities=0x03, cs_interfaces=None, cdc_cls=None, **kwargs):
+    def __init__(self, app, phy, vid=0x2548, pid=0x1001, rev=0x0010, bmCapabilities=0x03, interfaces=None, cs_interfaces=None, cdc_cls=None, **kwargs):
         if cs_interfaces is None:
             cs_interfaces = []
         if cdc_cls is None:
-            cdc_cls = USBCDCClass(app, phy)
-
+            cdc_cls = self.get_default_class(app, phy)
+        if interfaces is None:
+            interfaces = []
+        control_interface = USBCDCControlInterface(
+            app=app, phy=phy,
+            interface_number=self.bControlInterface, interface_alternate=0,
+            interface_class=USBClass.CDC,
+            interface_subclass=self.bControlSubclass,
+            interface_protocol=self.bControlProtocol,
+            interface_string_index=0,
+            endpoints=[
+                USBEndpoint(
+                    app=app, phy=phy, number=0x3,
+                    direction=USBEndpoint.direction_in,
+                    transfer_type=USBEndpoint.transfer_type_interrupt,
+                    sync_type=USBEndpoint.sync_type_none,
+                    usage_type=USBEndpoint.usage_type_data,
+                    max_packet_size=0x40,
+                    interval=9,
+                    handler=self.handle_ep3_buffer_available
+                )
+            ],
+            cs_interfaces=cs_interfaces,
+        )
+        interfaces.insert(0, control_interface)
         super(USBCDCDevice, self).__init__(
             app=app, phy=phy,
             device_class=USBClass.CDC,
@@ -386,78 +410,14 @@ class USBCDCDevice(USBDevice):
                 USBConfiguration(
                     app=app, phy=phy,
                     index=1, string='Emulated CDC',
-                    interfaces=[
-                        # Control interface
-                        USBCDCControlInterface(
-                            app=app, phy=phy,
-                            interface_number=self.bControlInterface, interface_alternate=0,
-                            interface_class=USBClass.CDC,
-                            interface_subclass=self.bControlSubclass,
-                            interface_protocol=self.bControlProtocol,
-                            interface_string_index=0,
-                            endpoints=[
-                                USBEndpoint(
-                                    app=app, phy=phy, number=0x3,
-                                    direction=USBEndpoint.direction_in,
-                                    transfer_type=USBEndpoint.transfer_type_interrupt,
-                                    sync_type=USBEndpoint.sync_type_none,
-                                    usage_type=USBEndpoint.usage_type_data,
-                                    max_packet_size=0x40,
-                                    interval=9,
-                                    handler=self.handle_ep3_buffer_available
-                                )
-                            ],
-                            cs_interfaces=cs_interfaces,
-                            usb_class=cdc_cls
-                        ),
-                        USBInterface(
-                            app=app, phy=phy,
-                            interface_number=self.bDataInterface,
-                            interface_alternate=0,
-                            interface_class=USBClass.CDCData,
-                            interface_subclass=self.bDataSubclass,
-                            interface_protocol=self.bDataProtocol,
-                            interface_string_index=0,
-                            endpoints=[
-                                USBEndpoint(
-                                    app=app,
-                                    phy=phy,
-                                    number=0x1,
-                                    direction=USBEndpoint.direction_out,
-                                    transfer_type=USBEndpoint.transfer_type_bulk,
-                                    sync_type=USBEndpoint.sync_type_none,
-                                    usage_type=USBEndpoint.usage_type_data,
-                                    max_packet_size=0x40,
-                                    interval=0x00,
-                                    handler=self.handle_ep1_data_available
-                                ),
-                                USBEndpoint(
-                                    app=app,
-                                    phy=phy,
-                                    number=0x2,
-                                    direction=USBEndpoint.direction_in,
-                                    transfer_type=USBEndpoint.transfer_type_bulk,
-                                    sync_type=USBEndpoint.sync_type_none,
-                                    usage_type=USBEndpoint.usage_type_data,
-                                    max_packet_size=0x40,
-                                    interval=0x00,
-                                    handler=self.handle_ep2_buffer_available
-                                )
-                            ],
-                            usb_class=cdc_cls
-                        )
-                    ])
+                    interfaces=interfaces,
+                )
             ])
 
-    #
-    # default handlers
-    # you should probably override them in subclass...
-    #
-    def handle_ep1_data_available(self, data):
-        self.debug('handling %#x bytes of cdc data' % (len(data)))
-
-    def handle_ep2_buffer_available(self):
-        self.debug('ep2 buffer available')
+    def get_default_class(self, app, phy):
+        if self._default_cls is None:
+            self._default_cls = USBCDCClass(app, phy)
+        return self._default_cls
 
     @mutable('cdc_notification')
     def handle_ep3_buffer_available(self):

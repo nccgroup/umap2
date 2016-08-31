@@ -1,6 +1,5 @@
 '''
-Implement a Communication Device Class (CDC) Abstract Control Class (ACM)
-device.
+Implement a Communication Device Class (CDC) Direct Line (DL) device.
 The specification for this device may be found in CDC120-20101113-track.pdf
 and in PSTN120.pdf.
 '''
@@ -16,11 +15,11 @@ from umap2.dev.cdc import DataInterfaceClassProtocolCodes
 from umap2.dev.cdc import FunctionalDescriptor as FD
 
 
-class USBCdcAcmDevice(USBCDCDevice):
+class USBCdcDlDevice(USBCDCDevice):
 
-    name = 'CDC ACM Device'
+    name = 'CDC DL Device'
 
-    bControlSubclass = CommunicationClassSubclassCodes.AbstractControlModel
+    bControlSubclass = CommunicationClassSubclassCodes.DirectLineControlModel
     bControlProtocol = CommunicationClassProtocolCodes.AtCommands_v250
     bDataProtocol = DataInterfaceClassProtocolCodes.NoClassSpecificProtocolRequired
 
@@ -32,7 +31,7 @@ class USBCdcAcmDevice(USBCDCDevice):
             FD(app, phy, FD.Header, '\x01\x01'),
             # Call Management Functional Descriptor
             FD(app, phy, FD.CM, struct.pack('BB', bmCapabilities, USBCDCDevice.bDataInterface)),
-            FD(app, phy, FD.ACM, struct.pack('B', bmCapabilities)),
+            FD(app, phy, FD.DLM, struct.pack('B', bmCapabilities)),
             FD(app, phy, FD.UN, struct.pack('BB', USBCDCDevice.bControlInterface, USBCDCDevice.bDataInterface)),
         ]
         interfaces = [
@@ -73,7 +72,7 @@ class USBCdcAcmDevice(USBCDCDevice):
                 usb_class=cdc_cls
             )
         ]
-        super(USBCdcAcmDevice, self).__init__(
+        super(USBCdcDlDevice, self).__init__(
             app, phy,
             vid=vid, pid=pid, rev=rev,
             interfaces=interfaces, cs_interfaces=cs_interfaces, cdc_cls=cdc_cls,
@@ -82,9 +81,6 @@ class USBCdcAcmDevice(USBCDCDevice):
         self.receive_buffer = b''
 
     def handle_ep1_data_available(self, data):
-        '''
-        print the AT commands only upon new line
-        '''
         self.receive_buffer += data
         if b'\r' in self.receive_buffer:
             lines = self.receive_buffer.split(b'\r')
@@ -93,12 +89,12 @@ class USBCdcAcmDevice(USBCDCDevice):
                 self.info('received line: %s' % l)
 
     def handle_ep2_buffer_available(self):
-        # send ARP
+        # send some junk
         self.debug('in handle ep2 buffer available')
         self.send_on_endpoint(
             2,
-            unhexlify('ffffffffffffaabbccddeeff08060001080006040001600308aaaaaac0a80065000000000000c0a80100')
+            unhexlify('00112233445566778899aabbccddeeff')
         )
 
 
-usb_device = USBCdcAcmDevice
+usb_device = USBCdcDlDevice
