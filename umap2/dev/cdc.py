@@ -16,6 +16,10 @@ from umap2.core.usb_cs_interface import USBCSInterface
 from umap2.fuzz.helpers import mutable
 
 
+def stage(stage, func):
+    return mutable(stage)(func)
+
+
 class USBCDCClass(USBClass):
     name = 'CDCClass'
 
@@ -66,38 +70,143 @@ class USBCDCClass(USBClass):
     GET_CRC_MODE = 0x89
     SET_CRC_MODE = 0x8A
 
+    # this allows treating the same params in set/get & clear requests
+    # the first (and only, ATM) value in the tuple is the param id
+    # this id is internal and is not defined in the spec in any way
+    param_info = {
+        SEND_ENCAPSULATED_COMMAND: (SEND_ENCAPSULATED_COMMAND,),
+        GET_ENCAPSULATED_RESPONSE: (SEND_ENCAPSULATED_COMMAND,),
+        SET_COMM_FEATURE: (SET_COMM_FEATURE,),
+        GET_COMM_FEATURE: (SET_COMM_FEATURE,),
+        CLEAR_COMM_FEATURE: (SET_COMM_FEATURE,),
+        SET_AUX_LINE_STATE: (SET_AUX_LINE_STATE,),
+        SET_HOOK_STATE: (SET_HOOK_STATE,),
+        PULSE_SETUP: (PULSE_SETUP,),
+        SEND_PULSE: (SEND_PULSE,),
+        SET_PULSE_TIME: (SET_PULSE_TIME,),
+        RING_AUX_JACK: (RING_AUX_JACK,),
+        SET_LINE_CODING: (SET_LINE_CODING,),
+        GET_LINE_CODING: (SET_LINE_CODING,),
+        SET_CONTROL_LINE_STATE: (SET_CONTROL_LINE_STATE,),
+        SEND_BREAK: (SEND_BREAK,),
+        SET_RINGER_PARMS: (SET_RINGER_PARMS,),
+        GET_RINGER_PARMS: (SET_RINGER_PARMS,),
+        SET_OPERATION_PARMS: (SET_OPERATION_PARMS,),
+        GET_OPERATION_PARMS: (SET_OPERATION_PARMS,),
+        SET_LINE_PARMS: (SET_LINE_PARMS,),
+        GET_LINE_PARMS: (SET_LINE_PARMS,),
+        DIAL_DIGITS: (DIAL_DIGITS,),
+        SET_UNIT_PARAMETER: (SET_UNIT_PARAMETER,),
+        GET_UNIT_PARAMETER: (SET_UNIT_PARAMETER,),
+        CLEAR_UNIT_PARAMETER: (SET_UNIT_PARAMETER,),
+        GET_PROFILE: (GET_PROFILE,),
+        SET_ETHERNET_MULTICAST_FILTERS: (SET_ETHERNET_MULTICAST_FILTERS,),
+        SET_ETHERNET_POWER_MANAGEMENT_PATTERN_FILTER: (SET_ETHERNET_POWER_MANAGEMENT_PATTERN_FILTER,),
+        GET_ETHERNET_POWER_MANAGEMENT_PATTERN_FILTER: (SET_ETHERNET_POWER_MANAGEMENT_PATTERN_FILTER,),
+        SET_ETHERNET_PACKET_FILTER: (SET_ETHERNET_PACKET_FILTER,),
+        GET_ETHERNET_STATISTIC: (GET_ETHERNET_STATISTIC,),
+        SET_ATM_DATA_FORMAT: (SET_ATM_DATA_FORMAT,),
+        GET_ATM_DEVICE_STATISTICS: (GET_ATM_DEVICE_STATISTICS,),
+        SET_ATM_DEFAULT_VC: (SET_ATM_DEFAULT_VC,),
+        GET_ATM_VC_STATISTICS: (GET_ATM_VC_STATISTICS,),
+        GET_NTB_PARAMETERS: (GET_NTB_PARAMETERS,),
+        GET_NET_ADDRESS: (SET_NET_ADDRESS,),
+        SET_NET_ADDRESS: (SET_NET_ADDRESS,),
+        GET_NTB_FORMAT: (SET_NTB_FORMAT,),
+        SET_NTB_FORMAT: (SET_NTB_FORMAT,),
+        GET_NTB_INPUT_SIZE: (SET_NTB_INPUT_SIZE,),
+        SET_NTB_INPUT_SIZE: (SET_NTB_INPUT_SIZE,),
+        GET_MAX_DATAGRAM_SIZE: (SET_MAX_DATAGRAM_SIZE,),
+        SET_MAX_DATAGRAM_SIZE: (SET_MAX_DATAGRAM_SIZE,),
+        GET_CRC_MODE: (SET_CRC_MODE,),
+        SET_CRC_MODE: (SET_CRC_MODE,),
+    }
+
     def __init__(self, app, phy):
         super(USBCDCClass, self).__init__(app, phy)
         self.encapsulated_response = b''
 
     def setup_local_handlers(self):
         self.local_handlers = {
-            self.SEND_ENCAPSULATED_COMMAND: self.handle_send_encapsulated_command,
-            self.GET_ENCAPSULATED_RESPONSE: self.handle_get_encapsulated_response,
-            self.SET_CONTROL_LINE_STATE: self.handle_set_control_line_state,
-            self.SET_LINE_CODING: self.handle_cdc_set_line_coding,
-            self.GET_LINE_CODING: self.handle_cdc_set_control_line_state,
+            self.SEND_ENCAPSULATED_COMMAND: self.handle_setter,
+            self.GET_ENCAPSULATED_RESPONSE: stage('cdc_get_encapsulated_response', self.handle_getter),
+            self.SET_COMM_FEATURE: self.handle_setter,
+            self.GET_COMM_FEATURE: stage('cdc_get_comm_feature', self.handle_getter),
+            self.CLEAR_COMM_FEATURE: self.handle_clear,
+            self.SET_AUX_LINE_STATE: self.handle_setter,
+            self.SET_HOOK_STATE: self.handle_setter,
+            self.PULSE_SETUP: self.handle_ignore,
+            self.SEND_PULSE: self.handle_ignore,
+            self.SET_PULSE_TIME: self.handle_setter,
+            self.RING_AUX_JACK: self.handle_ignore,
+            self.SET_LINE_CODING: self.handle_setter,
+            self.GET_LINE_CODING: stage('cdc_get_line_coding', self.handle_getter),
+            self.SET_CONTROL_LINE_STATE: self.handle_setter,
+            self.SEND_BREAK: self.handle_ignore,
+            self.SET_RINGER_PARMS: self.handle_setter,
+            self.GET_RINGER_PARMS: stage('cdc_get_ringer_parms', self.handle_getter),
+            self.SET_OPERATION_PARMS: self.handle_setter,
+            self.GET_OPERATION_PARMS: stage('cdc_get_operation_parms', self.handle_getter),
+            self.SET_LINE_PARMS: self.handle_setter,
+            self.GET_LINE_PARMS: stage('cdc_get_line_parms', self.handle_getter),
+            self.DIAL_DIGITS: self.handle_ignore,
+            self.SET_UNIT_PARAMETER: self.handle_setter,
+            self.GET_UNIT_PARAMETER: stage('cdc_get_unit_parameter', self.handle_getter),
+            self.CLEAR_UNIT_PARAMETER: self.handle_clear,
+            self.GET_PROFILE: stage('cdc_get_profile', self.handle_getter),
+            self.SET_ETHERNET_MULTICAST_FILTERS: self.handle_setter,
+            self.SET_ETHERNET_POWER_MANAGEMENT_PATTERN_FILTER: self.handle_setter,
+            self.GET_ETHERNET_POWER_MANAGEMENT_PATTERN_FILTER: stage('cdc_get_ethernet_power_management_pattern_filter', self.handle_getter),
+            self.SET_ETHERNET_PACKET_FILTER: self.handle_setter,
+            self.GET_ETHERNET_STATISTIC: stage('cdc_get_ethernet_statistic', self.handle_getter),
+            self.SET_ATM_DATA_FORMAT: self.handle_setter,
+            self.GET_ATM_DEVICE_STATISTICS: stage('cdc_get_atm_device_statistics', self.handle_getter),
+            self.SET_ATM_DEFAULT_VC: self.handle_setter,
+            self.GET_ATM_VC_STATISTICS: stage('cdc_get_atm_vc_statistics', self.handle_getter),
+            self.GET_NTB_PARAMETERS: stage('cdc_get_ntb_parameters', self.handle_getter),
+            self.GET_NET_ADDRESS: stage('cdc_get_net_address', self.handle_getter),
+            self.SET_NET_ADDRESS: self.handle_setter,
+            self.GET_NTB_FORMAT: stage('cdc_get_format', self.handle_getter),
+            self.SET_NTB_FORMAT: self.handle_setter,
+            self.GET_NTB_INPUT_SIZE: stage('cdc_get_ntb_input_size', self.handle_getter),
+            self.SET_NTB_INPUT_SIZE: self.handle_setter,
+            self.GET_MAX_DATAGRAM_SIZE: stage('cdc_get_max_datagram_size', self.handle_getter),
+            self.SET_MAX_DATAGRAM_SIZE: self.handle_setter,
+            self.GET_CRC_MODE: stage('cdc_get_crc_mode', self.handle_getter),
+            self.SET_CRC_MODE: self.handle_setter,
         }
-        self.encapsulated_response = b''
-        self.control_line_state = 0x0
+        self.params = {}
 
-    def handle_send_encapsulated_command(self, req):
-        self.encapsulated_command = req.data
+    def handle_setter(self, req):
+        '''
+        This is as simple as it gets, set the value that you got with
+        the best key you can
+        '''
+        param_id = self.get_param_id_from_request(req.request)
+        self.params[(param_id, req.value, req.index)] = req.data
         return b''
 
-    @mutable('cdc_get_encapsulated_response')
-    def handle_get_encapsulated_response(self, req):
-        return self.encapsulated_response
+    def handle_getter(self, req):
+        param_id = self.get_param_id_from_request(req.request)
+        key = (param_id, req.value, req.index)
+        if key in self.params:
+            return self.params[key]
+        return '\x00' * req.length
 
-    def handle_set_control_line_state(self, req):
-        self.control_line_state = req.value
+    def handle_clear(self, req):
+        param_id = self.get_param_id_from_request(req.request)
+        key = (param_id, req.value, req.index)
+        if key in self.params:
+            del self.params[key]
         return b''
 
-    def handle_cdc_set_line_coding(self, req):
+    def handle_ignore(self, req):
         return b''
 
-    def handle_cdc_set_control_line_state(self, req):
-        return b''
+    def get_param_id_from_request(self, request):
+        if request in self.param_info:
+            return self.param_info[request][0]
+        return request
 
 
 class CommunicationClassSubclassCodes:
