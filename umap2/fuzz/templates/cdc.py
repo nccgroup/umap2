@@ -8,7 +8,7 @@ from kitty.model import UInt8, LE16, RandomBytes, BitField, Static
 from kitty.model import Template, Repeat, List, Container, ForEach, OneOf
 from kitty.model import ElementCount
 from kitty.model import MutableField
-from generic import Descriptor, SubDescriptor
+from generic import SubDescriptor
 
 
 cdc_control_interface_descriptor = Template(
@@ -37,7 +37,7 @@ cdc_control_interface_descriptor = Template(
                         UInt8(name='bDesciptorSubType', value=FunctionalDescriptor.Header),
                         LE16(name='bcdCDC', value=0x0101)
                     ]),
-                Descriptor(
+                SubDescriptor(
                     name='cdc_call_management_functional_descriptor',
                     descriptor_type=DescriptorType.cs_interface,
                     fields=[
@@ -45,14 +45,14 @@ cdc_control_interface_descriptor = Template(
                         BitField(name='bmCapabilities', value=0, length=8),
                         UInt8(name='bDataInterface', value=2)
                     ]),
-                Descriptor(
+                SubDescriptor(
                     name='cdc_abstract_control_management_functional_descriptor',
                     descriptor_type=DescriptorType.cs_interface,
                     fields=[
                         UInt8(name='bDesciptorSubType', value=FunctionalDescriptor.ACM),
                         BitField(name='bmCapabilities', value=0, length=8)
                     ]),
-                Descriptor(
+                SubDescriptor(
                     name='cdc_union_functional_descriptor',
                     descriptor_type=DescriptorType.cs_interface,
                     fields=[
@@ -60,7 +60,7 @@ cdc_control_interface_descriptor = Template(
                         UInt8(name='bMasterInterface', value=0),
                         Repeat(UInt8(name='bSlaveInterfaceX', value=1), 0, 251)
                     ]),
-                Descriptor(
+                SubDescriptor(
                     name='cdc_ethernet_networking_functional_descriptor',
                     descriptor_type=DescriptorType.cs_interface,
                     fields=[
