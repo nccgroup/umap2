@@ -4,6 +4,7 @@ This module contains helpers for fuzzing
 
 import traceback
 import binascii
+import inspect
 
 
 class StageLogger(object):
@@ -43,7 +44,17 @@ def log_stage(stage):
 
 def mutable(stage, silent=False):
     def wrap_f(func):
-        def wrapper(self, *args, **kwargs):
+        func_self = None
+        if inspect.ismethod(func):
+            func_self = func.im_self
+            func = func.im_func
+
+        def wrapper(*args, **kwargs):
+            if func_self is None:
+                self = args[0]
+                args = tuple(args[1:])
+            else:
+                self = func_self
             response = None
             valid_req = kwargs.get('valid', False)
             info = self.info if not silent else self.debug

@@ -8,7 +8,7 @@ from common import get_test_logger
 from infra_event_handler import EventHandler
 from infra_app import TestApp
 from infra_phy import SendDataEvent, StallEp0Event
-
+from umap2.dev.cdc import USBCDCClass
 
 DIR_OUT = 0x00
 DIR_IN = 0x80
@@ -169,6 +169,40 @@ class CdcAcmDeviceTests(unittest.TestCase, BaseDeviceTests):
 
     def setUp(self):
         self._setUp()
+
+    def _testClassRequestHandling(self, req, req_data=None, req_length=0, response_data=''):
+        if req_data is not None:
+            length = len(req_data)
+        else:
+            length = req_length
+            req_data = b''
+        req = struct.pack('<BBHHH', 0x21, req, 0, 1, length) + req_data
+        self.device.handle_request(req)
+        ev = self.get_single_response(0, len(response_data))
+        resp = ev.data
+        self.assertEqual(resp, response_data)
+
+    def _testClassSetterGetter(self, set_req, get_req, data):
+        self._testClassRequestHandling(set_req, req_data=data)
+        self._testClassRequestHandling(get_req, req_length=len(data), response_data=data)
+
+    def testClassSettersAndGetters(self):
+        self._testClassSetterGetter(USBCDCClass.SEND_ENCAPSULATED_COMMAND, USBCDCClass.GET_ENCAPSULATED_RESPONSE, b'\x01\x02\x03'),
+        self._testClassSetterGetter(USBCDCClass.SET_COMM_FEATURE, USBCDCClass.GET_COMM_FEATURE, b'\x01\x02\x03'),
+        self._testClassSetterGetter(USBCDCClass.SET_LINE_CODING, USBCDCClass.GET_LINE_CODING, b'\x01\x02\x03'),
+        self._testClassSetterGetter(USBCDCClass.SET_RINGER_PARMS, USBCDCClass.GET_RINGER_PARMS, b'\x01\x02\x03'),
+        self._testClassSetterGetter(USBCDCClass.SET_OPERATION_PARMS, USBCDCClass.GET_OPERATION_PARMS, b'\x01\x02\x03'),
+        self._testClassSetterGetter(USBCDCClass.SET_LINE_PARMS, USBCDCClass.GET_LINE_PARMS, b'\x01\x02\x03'),
+        self._testClassSetterGetter(USBCDCClass.SET_UNIT_PARAMETER, USBCDCClass.GET_UNIT_PARAMETER, b'\x01\x02\x03'),
+        self._testClassSetterGetter(
+            USBCDCClass.SET_ETHERNET_POWER_MANAGEMENT_PATTERN_FILTER,
+            USBCDCClass.GET_ETHERNET_POWER_MANAGEMENT_PATTERN_FILTER, b'\x01\x02\x03'
+        ),
+        self._testClassSetterGetter(USBCDCClass.SET_NET_ADDRESS, USBCDCClass.GET_NET_ADDRESS, b'\x01\x02\x03'),
+        self._testClassSetterGetter(USBCDCClass.SET_NTB_FORMAT, USBCDCClass.GET_NTB_FORMAT, b'\x01\x02\x03'),
+        self._testClassSetterGetter(USBCDCClass.SET_NTB_INPUT_SIZE, USBCDCClass.GET_NTB_INPUT_SIZE, b'\x01\x02\x03'),
+        self._testClassSetterGetter(USBCDCClass.SET_MAX_DATAGRAM_SIZE, USBCDCClass.GET_MAX_DATAGRAM_SIZE, b'\x01\x02\x03'),
+        self._testClassSetterGetter(USBCDCClass.SET_CRC_MODE, USBCDCClass.GET_CRC_MODE, b'\x01\x02\x03'),
 
 
 class FtdiDeviceTests(unittest.TestCase, BaseDeviceTests):

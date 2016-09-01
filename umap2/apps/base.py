@@ -20,17 +20,19 @@ class Umap2App(object):
             self.options = docopt.docopt(docstring)
         else:
             self.options = {}
-        self.umap_classes = [
-            'audio',
-            'cdc_acm',
-            'ftdi',
-            'hub',
-            'keyboard',
-            'mass_storage',
-            'mtp',
-            'printer',
-            'smartcard',
-        ]
+        self.umap_class_dict = {
+            'audio': ('audio', 'Headset'),
+            'cdc_acm': ('cdc_acm', 'Abstract Control Model device (like serial modem)'),
+            'cdc_dl': ('cdc_dl', 'Direct Line Control device (like modem)'),
+            'ftdi': ('ftdi', 'USB<->RS232 FTDI chip'),
+            'hub': ('hub', 'USB hub'),
+            'keyboard': ('keyboard', 'Keyboard'),
+            'mass_storage': ('mass_storage', 'Disk on key'),
+            'mtp': ('mtp', 'Android phone'),
+            'printer': ('printer', 'Printer'),
+            'smartcard': ('smartcard', 'USB<->smart card interface'),
+        }
+        self.umap_classes = sorted(self.umap_class_dict.keys())
         self.logger = self.get_logger()
         self.num_processed = 0
         self.fuzzer = None
@@ -73,7 +75,7 @@ class Umap2App(object):
     def load_device(self, dev_name, phy):
         if dev_name in self.umap_classes:
             self.logger.info('Loading USB device %s' % dev_name)
-            module_name = dev_name
+            module_name = self.umap_class_dict[dev_name][0]
             module = importlib.import_module('umap2.dev.%s' % module_name)
         else:
             self.logger.info('Loading custom USB device from file: %s' % dev_name)
