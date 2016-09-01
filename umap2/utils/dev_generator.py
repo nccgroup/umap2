@@ -28,8 +28,8 @@ def get_configuration_descriptors(opts):
     return [unhexlify(desc) for desc in opts['<CONFIGURATION_DESCRIPTOR>']]
 
 
-def add_indentation(s):
-    ind = '\n    '
+def add_indentation(s, count=1):
+    ind = '\n' + '    ' * count
     return ind + ind.join(s.split('\n'))
 
 
@@ -100,14 +100,17 @@ from umap2.core.usb_cs_interface import USBCSInterface
 from umap2.core.usb_cs_endpoint import USBCSEndpoint
 
 
-def make_device(app, phy, vid=None, pid=None, **kwargs):'''
-            res = 'usb_class = None\n'
+class USBMyDevice(USBDevice):
+
+    def __init__(self, app, phy, vid=0x%04x, pid=0x%04x, **kwargs):''' % (dep.vendor_id, dep.product_id)
+            res = ''
+            res += 'strings_dict = {}\n'
+            res += 'usb_class = None\n'
             res += 'usb_vendor = None\n'
             res += dep.get_pre()
-            res += 'device = %s\n' % (dep.get_text())
-            res += 'return device\n'
-            res = add_indentation(res)
-            res += '\n\nusb_device = make_device\n'
+            res += dep.get_text()
+            res = add_indentation(res, 2)
+            res += '\n\nusb_device = USBMyDevice\n'
             fres += pre_code + res
         return fres
 
@@ -150,6 +153,9 @@ def build_init(cls_name, params):
 
 
 class Parser(object):
+    transfer_types = ('USBEndpoint.transfer_type_', ['control', 'isochronous', 'bulk', 'interrupt'])
+    sync_types = ('USBEndpoint.sync_type_', ['none', 'async', 'adaptive', 'synchronous'])
+    usage_types = ('USBEndpoint.usage_type_', ['data', 'feedback', 'implicit_feedback'])
 
     def __init__(self, opts):
         self.opts = opts
@@ -162,6 +168,12 @@ class Parser(object):
             DescriptorType.endpoint: self.parse_endpoint_desc,
             DescriptorType.cs_endpoint: self.parse_cs_endpoint_desc,
         }
+
+    def endpoint_constant(self, const_types, value):
+        if value < len(const_types[1]):
+            return const_types[0] + const_types[1][value]
+        else:
+            return '%#x' % (value)
 
     def push_node(self, node):
         self.curr_node.deps.append(node)
@@ -200,16 +212,16 @@ class Parser(object):
             _, bDescriptorType, address,
             attributes, max_packet_size, interval
         ) = struct.unpack('<BBBBHB', desc)
-        direction = 'USBEndpoint.direction_in' if address & 0x80 == 0x80 else 'USBEndpoint.direction_out'
+        direction = 'in' if address & 0x80 == 0x80 else 'out'
         number = address & 0x7f
         handler_name = 'handle_ep%d_%s_available' % (number, direction)
         cs_endpoints_name = "endpoint_%s_cs_endpoints" % (number)
         s = build_init('USBEndpoint', [
             ("number", number),
-            ("direction", direction),
-            ("transfer_type", attributes & 0x03),
-            ("sync_type", (attributes >> 2) & 0x03),
-            ("usage_type", (attributes >> 4) & 0x03),
+            ("direction", 'USBEndpoint.direction_' + direction),
+            ("transfer_type", self.endpoint_constant(self.transfer_types, attributes & 0x03)),
+            ("sync_type", self.endpoint_constant(self.sync_types, (attributes >> 2) & 0x03)),
+            ("usage_type", self.endpoint_constant(self.usage_types, (attributes >> 4) & 0x03)),
             ("max_packet_size", max_packet_size),
             ("interval", interval),
             ("handler", handler_name),
@@ -298,13 +310,13 @@ class Parser(object):
         if bDescriptorType != DescriptorType.device:
             raise Exception('This is not a device descriptor!')
         configurations_name = 'configurations'
-        s = build_init('USBDevice', [
+        s = build_init('super(USBMyDevice, self).__init__', [
             ('device_class', device_class),
             ('device_subclass', device_subclass),
             ('protocol_rel_num', protocol_rel_num),
             ('max_packet_size_ep0', max_packet_size_ep0),
-            ('vendor_id', vendor_id),
-            ('product_id', product_id),
+            ('vendor_id', 'vid'),
+            ('product_id', 'pid'),
             ('device_rev', device_rev),
             ('manufacturer_string', "strings_dict.get(%s, 'VID-%s')" % (manufacturer_string_id, manufacturer_string_id)),
             ('product_string', "strings_dict.get(%s, 'PID-%s')" % (product_string_id, product_string_id)),
@@ -319,6 +331,8 @@ class Parser(object):
         node.list_names = {
             DescriptorType.configuration: configurations_name,
         }
+        node.vendor_id = vendor_id
+        node.product_id = product_id
         return s
 
     def parse_config_desc(self, desc_buff):
