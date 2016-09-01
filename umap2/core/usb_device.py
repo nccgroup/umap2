@@ -60,12 +60,15 @@ class USBDevice(USBBaseActor):
         self.serial_number_string_id = self.get_string_id(serial_number_string)
 
         # maps from USB.desc_type_* to bytearray OR callable
-        self.descriptors = descriptors
-        self.descriptors[DescriptorType.device] = self.get_descriptor
-        self.descriptors[DescriptorType.configuration] = self.get_configuration_descriptor
-        self.descriptors[DescriptorType.string] = self.handle_get_string_descriptor_request
-        self.descriptors[DescriptorType.hub] = self.handle_get_hub_descriptor_request
-        self.descriptors[DescriptorType.device_qualifier] = self.get_device_qualifier_descriptor
+        self.descriptors = {
+            DescriptorType.device: self.get_descriptor,
+            DescriptorType.configuration: self.get_configuration_descriptor,
+            DescriptorType.other_speed_configuration: self.get_other_speed_configuration_descriptor,
+            DescriptorType.string: self.handle_get_string_descriptor_request,
+            DescriptorType.hub: self.handle_get_hub_descriptor_request,
+            DescriptorType.device_qualifier: self.get_device_qualifier_descriptor,
+        }
+        self.descriptors.update(descriptors)
 
         self.config_num = -1
         self.configuration = None
@@ -321,6 +324,12 @@ class USBDevice(USBBaseActor):
             return self.configurations[num].get_descriptor()
         else:
             return self.configurations[0].get_descriptor()
+
+    def get_other_speed_configuration_descriptor(self, num):
+        if num < len(self.configurations):
+            return self.configurations[num].get_other_speed_descriptor()
+        else:
+            return self.configurations[0].get_other_speed_descriptor()
 
     @mutable('string_descriptor_zero')
     def get_string0_descriptor(self):
