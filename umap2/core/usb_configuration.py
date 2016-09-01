@@ -111,3 +111,32 @@ class USBConfiguration(USBBaseActor):
             self._max_power
         )
         return d + interface_descriptors
+
+    @mutable('other_speed_configuration_descriptor')
+    def get_other_speed_descriptor(self, usb_type='fullspeed', valid=False):
+        '''
+        Get the other speed configuration descriptor.
+        We implement it the same as configuration descriptor,
+        only with different descriptor type.
+
+        :return: a string of the entire other speed configuration descriptor
+        '''
+        interface_descriptors = b''
+        for i in self.interfaces:
+            interface_descriptors += i.get_descriptor(usb_type, valid)
+        bLength = 9  # always 9
+        bDescriptorType = DescriptorType.other_speed_configuration
+        wTotalLength = len(interface_descriptors) + 9
+        bNumInterfaces = len(self.interfaces)
+        d = struct.pack(
+            '<BBHBBBBB',
+            bLength,
+            bDescriptorType,
+            wTotalLength & 0xffff,
+            bNumInterfaces,
+            self._index,
+            self._string_index,
+            self._attributes,
+            self._max_power
+        )
+        return d + interface_descriptors
