@@ -72,7 +72,7 @@ class USBBillboardDevice(USBDevice):
             usb_class=usb_class,
             usb_vendor=usb_vendor,
         )
-        self.usb_spec_version = 0x0201
+        self.usb_spec_version = 0x0210
         self.bos = USBBinaryObjectStore(app, phy, capabilities=[
             DCContainerId(app, phy, container_id=b'UMAP2-BILL-12345'),
             DCBillboard(
