@@ -45,15 +45,17 @@ DESCRIPTOR_TYPE_DEVICE = 0x01
 DESCRIPTOR_TYPE_CONFIGURATION = 0x02
 DESCRIPTOR_TYPE_INTERFACE = 0x04
 DESCRIPTOR_TYPE_ENDPOINT = 0x05
-DESCRIPTOR_TYPE_STRING = 0x0
-DESCRIPTOR_TYPE_DEVICE_QUALIFIER = 0x006
+DESCRIPTOR_TYPE_STRING = 0x03
+DESCRIPTOR_TYPE_DEVICE_QUALIFIER = 0x06
+DESCRIPTOR_TYPE_BOS = 0x0f
 
 DESCRIPTOR_LENGTH_DEVICE = 0x12
 DESCRIPTOR_LENGTH_CONFIGURATION = 0x09
 DESCRIPTOR_LENGTH_INTERFACE = 0x09
 DESCRIPTOR_LENGTH_ENDPOINT = 0x07
 DESCRIPTOR_LENGTH_STRING = 0x02   # base size
-DESCRIPTOR_LENGTH_DEVICE_QUALIFIER = 0x006
+DESCRIPTOR_LENGTH_DEVICE_QUALIFIER = 0x06
+DESCRIPTOR_LENGTH_BOS = 0x05
 
 
 def setup_request(
@@ -243,3 +245,18 @@ class SmartcardDeviceTests(unittest.TestCase, BaseDeviceTests):
 
     def setUp(self):
         self._setUp()
+
+
+class BillboardDeviceTests(unittest.TestCase, BaseDeviceTests):
+
+    __dev_name__ = 'billboard'
+
+    def setUp(self):
+        self._setUp()
+
+    def testBosDescriptor(self):
+        bos_descriptor_request = setup_request(
+            DIR_IN, TYPE_STANDARD, RECIPIENT_DEVICE, DEVICE_REQUEST_GET_DESCRIPTOR,
+            0, DESCRIPTOR_TYPE_BOS, 0, DESCRIPTOR_LENGTH_BOS
+        )
+        self._testGetDescriptorConsistent(bos_descriptor_request, DESCRIPTOR_LENGTH_BOS)

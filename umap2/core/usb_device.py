@@ -17,7 +17,7 @@ class USBDevice(USBBaseActor):
             protocol_rel_num, max_packet_size_ep0, vendor_id, product_id,
             device_rev, manufacturer_string, product_string,
             serial_number_string, configurations=None, descriptors=None,
-            usb_class=None, usb_vendor=None):
+            usb_class=None, usb_vendor=None, bos=None):
         '''
         :param app: umap2 application
         :param phy: physical connection
@@ -35,6 +35,7 @@ class USBDevice(USBBaseActor):
         :param descriptors: dict of handler for descriptor requests (default: None)
         :param usb_class: USBClass instance (default: None)
         :param usb_vendor: USB device vendor (default: None)
+        :param bos: USBBinaryStoreObject instance (default: None)
         '''
         super(USBDevice, self).__init__(app, phy)
         if configurations is None:
@@ -67,6 +68,7 @@ class USBDevice(USBBaseActor):
             DescriptorType.string: self.handle_get_string_descriptor_request,
             DescriptorType.hub: self.handle_get_hub_descriptor_request,
             DescriptorType.device_qualifier: self.get_device_qualifier_descriptor,
+            DescriptorType.bos: self.get_bos_descriptor,
         }
         self.descriptors.update(descriptors)
 
@@ -76,6 +78,8 @@ class USBDevice(USBBaseActor):
 
         self.usb_class = usb_class
         self.usb_vendor = usb_vendor
+
+        self.bos = bos
 
         for c in self.configurations:
             csi = self.get_string_id(c.get_string())
@@ -330,6 +334,12 @@ class USBDevice(USBBaseActor):
             return self.configurations[num].get_other_speed_descriptor()
         else:
             return self.configurations[0].get_other_speed_descriptor()
+
+    def get_bos_descriptor(self, num):
+        if self.bos:
+            return self.bos.get_descriptor()
+        # no bos? stall ep
+        return None
 
     @mutable('string_descriptor_zero')
     def get_string0_descriptor(self):

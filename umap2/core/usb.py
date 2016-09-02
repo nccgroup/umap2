@@ -21,6 +21,7 @@ class DescriptorType(object):
     other_speed_configuration = 0x07
     interface_power = 0x08
     bos = 0x0f
+    device_capability = 0x10
     hid = 0x21
     report = 0x22
     cs_interface = 0x24
