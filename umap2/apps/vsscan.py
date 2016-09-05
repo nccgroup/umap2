@@ -203,14 +203,10 @@ class Umap2VSScanApp(Umap2App):
 
     def print_results(self):
         num_supported = len(self.scan_session.supported)
-        num_unsupported = len(self.scan_session.unsupported)
+        # num_unsupported = len(self.scan_session.unsupported)
         self.logger.always('----------------------------------------')
         self.logger.always('Found %s supported device(s) (out of %s):' % (num_supported, self.scan_session.current))
         for i, db_entry in enumerate(self.scan_session.supported):
-            self.logger.always('%d. %s' % (i, db_entry))
-        self.logger.always('----------------------------------------')
-        self.logger.always('Found %s unsupported device(s) (out of %s):' % (num_unsupported, self.scan_session.current))
-        for i, db_entry in enumerate(self.scan_session.unsupported):
             self.logger.always('%d. %s' % (i, db_entry))
         self.logger.always('----------------------------------------')
         self.logger.always('Devices with no response (previous):')
@@ -259,9 +255,9 @@ class Umap2VSScanApp(Umap2App):
                 driver = db_entry.drivers.get(self.os, None)
                 if driver:
                     self.scan_session.supported_drivers.append(db_entry.drivers[self.os])
-            else:
-                db_entry.info = self.get_device_info(device)
-                self.scan_session.unsupported.append(db_entry)
+            # else:
+            #     db_entry.info = self.get_device_info(device)
+            #     self.scan_session.unsupported.append(db_entry)
             self.prev_index = self.scan_session.current
             self.sync_and_increment_session()
             if self.single_step:
@@ -307,3 +303,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
