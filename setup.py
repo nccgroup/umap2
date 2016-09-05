@@ -19,6 +19,7 @@ setup(
     install_requires=[
         'docopt',
         'kittyfuzzer>=0.6.9',
+        'pyserial',
     ],
     keywords='security,usb,fuzzing,kitty',
     entry_points={
