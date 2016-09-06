@@ -36,8 +36,7 @@ Limitations
   this affects couple of devices that will not be emulated properly by Umap2.
 - In some cases, a disconnection in the gadget FS stack is not handled properly.
   This causes some devices to malfunction in certain cases.
-- The GadgetFS kernel module requires some modifications
-  (provided here)
+- The GadgetFS kernel module requires some modifications (provided here)
 - You need to run umap2 as root
 
 Installation
@@ -49,19 +48,20 @@ Instead, we assume that you are already able to build kernel modules
 on your platforms.
 
 Since there are differences in the kernel APIs between different kernels,
-we provide 2 versions of the patched inode.c (gadgetfs module source),
-their names are inode.c.{KERNEL_VERSION}.patched.
-There aren't that many changes in gadgetfs anymore,
-so if you have a rather updated kernel,
-you should probably be able to use one of the versions.
+we provide 2 versions of the patched inode.c (gadgetfs module source):
 
-**Note:** Currently we assume that all operations are running as root.
+  - inode.c-v4.4.9 for kernel v4.4.9 which is widely used (at the time)
+    for the BeagleBone black
+  - inode.c-v4.6_and_up which should be compatible at least up to v4.8-rc5
+
+**Note:** Currently we assume that all operations are performed as root.
 
 ::
 
   $ pip install -e $UMAP2_HOME
   $ cd $UMAP2_HOME/gadgetfs
-  $ cp inode.c.MY_KERNEL_VERSION.patched inode.c
+  # VERSION is as mentioned above
+  $ cp inode.c.VERSION inode.c
   $ make modules
   $ cp gadgetfs.ko /root/
 
@@ -85,3 +85,5 @@ Once the new module is loaded,
 you can run Umap2 as described in the README.rst in the root of the repository,
 But specify ``-P gadgetfs`` in the command line
 to use gadgetfs as the physical layer of Umap2.
+
+**HAPPY HACKING :)**

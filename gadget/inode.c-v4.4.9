@@ -65,7 +65,7 @@
  * selective clearing of endpoint halts, to implement SET_INTERFACE.
  */
 
-#define	DRIVER_DESC	"USB Gadget filesystem"
+#define	DRIVER_DESC	"USB Gadget filesystem - Umap2 patches"
 #define	DRIVER_VERSION	"24 Aug 2004"
 
 static const char driver_desc [] = DRIVER_DESC;
@@ -1351,7 +1351,7 @@ gadgetfs_setup (struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 	switch (ctrl->bRequest) {
 
 	case USB_REQ_GET_DESCRIPTOR:
-		goto unrecognized;
+		goto delegate;
 		/*if (ctrl->bRequestType != USB_DIR_IN)
 			goto unrecognized;
 		switch (w_value >> 8) {

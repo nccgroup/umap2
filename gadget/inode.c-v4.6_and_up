@@ -65,7 +65,7 @@
  * selective clearing of endpoint halts, to implement SET_INTERFACE.
  */
 
-#define	DRIVER_DESC	"USB Gadget filesystem"
+#define	DRIVER_DESC	"USB Gadget filesystemi - Umap2 patches"
 #define	DRIVER_VERSION	"24 Aug 2004"
 
 static const char driver_desc [] = DRIVER_DESC;
@@ -331,7 +331,6 @@ ep_io (struct ep_data *epdata, void *buf, unsigned len)
 {
 	DECLARE_COMPLETION_ONSTACK (done);
 	int value;
-	INFO (epdata->dev, "ep_io (len: %d)\n", len);
 
 	spin_lock_irq (&epdata->dev->lock);
 	if (likely (epdata->ep != NULL)) {
@@ -366,10 +365,8 @@ ep_io (struct ep_data *epdata, void *buf, unsigned len)
 				epdata->status = -ENODEV;
 			}
 		}
-		INFO (epdata->dev, "ep_io(1) => %d\n", epdata->status);
 		return epdata->status;
 	}
-	INFO (epdata->dev, "ep_io(2) => %d\n", value);
 	return value;
 }
 
@@ -545,7 +542,7 @@ static ssize_t ep_aio(struct kiocb *iocb,
 	 */
 	spin_lock_irq(&epdata->dev->lock);
 	value = -ENODEV;
-	if (unlikely(epdata->ep))
+	if (unlikely(epdata->ep == NULL))
 		goto fail;
 
 	req = usb_ep_alloc_request(epdata->ep, GFP_ATOMIC);
@@ -608,7 +605,6 @@ ep_read_iter(struct kiocb *iocb, struct iov_iter *to)
 		return -ENOMEM;
 	}
 	if (is_sync_kiocb(iocb)) {
-		INFO(epdata->dev, "Calling ep_io from read\n");
 		value = ep_io(epdata, buf, len);
 		if (value >= 0 && (copy_to_iter(buf, value, to) != value))
 			value = -EFAULT;
@@ -679,7 +675,6 @@ ep_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	if (unlikely(!configured)) {
 		value = ep_config(epdata, buf, len);
 	} else if (is_sync_kiocb(iocb)) {
-		INFO(epdata->dev, "Calling ep_io from write\n");
 		value = ep_io(epdata, buf, len);
 	} else {
 		struct kiocb_priv *priv = kzalloc(sizeof *priv, GFP_KERNEL);
@@ -932,7 +927,7 @@ ep0_read (struct file *fd, char __user *buf, size_t len, loff_t *ptr)
 
 	/* control DATA stage */
 	if ((state = dev->state) == STATE_DEV_SETUP) {
-		DBG(dev, "Current dev state: STATE_DEV_SETUP\n");
+
 		if (dev->setup_in) {		/* stall IN */
 			VDEBUG(dev, "ep0in stall\n");
 			(void) usb_ep_set_halt (dev->gadget->ep0);
@@ -1351,40 +1346,7 @@ gadgetfs_setup (struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 	switch (ctrl->bRequest) {
 
 	case USB_REQ_GET_DESCRIPTOR:
-		goto unrecognized;
-		/*if (ctrl->bRequestType != USB_DIR_IN)
-			goto unrecognized;
-		switch (w_value >> 8) {
-
-		case USB_DT_DEVICE:
-			value = min (w_length, (u16) sizeof *dev->dev);
-			dev->dev->bMaxPacketSize0 = dev->gadget->ep0->maxpacket;
-			req->buf = dev->dev;
-			break;
-		case USB_DT_DEVICE_QUALIFIER:
-			if (!dev->hs_config)
-				break;
-			value = min (w_length, (u16)
-				sizeof (struct usb_qualifier_descriptor));
-			make_qualifier (dev);
-			break;
-		case USB_DT_OTHER_SPEED_CONFIG:
-			// FALLTHROUGH
-		case USB_DT_CONFIG:
-			value = config_buf (dev,
-					w_value >> 8,
-					w_value & 0xff);
-			if (value >= 0)
-				value = min (w_length, (u16) value);
-			break;
-		case USB_DT_STRING:
-			goto unrecognized;
-
-		default:		// all others are errors
-			break;
-		}
-		break;*/
-
+        goto delegate;
 	/* currently one config, two speeds */
 	case USB_REQ_SET_CONFIGURATION:
 		if (ctrl->bRequestType != 0)
