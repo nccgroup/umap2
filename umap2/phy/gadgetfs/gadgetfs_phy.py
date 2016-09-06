@@ -230,7 +230,6 @@ class GadgetFsPhy(PhyInterface):
                     time.sleep(0.01)
                     continue
                 raise
-        self.info('length of events buffer: %#x' % (len(events)))
         for i in range(0, len(events), GFS_EVENT_SIZE):
             event = events[i:i + GFS_EVENT_SIZE]
             if len(event) < GFS_EVENT_SIZE:
@@ -270,8 +269,8 @@ class GadgetFsPhy(PhyInterface):
         if self.req_direction == Request.direction_host_to_device and req.length > 0:
             # Turns out, that at this point we cannot
             #
-            self.info('expecting additional data on control ep - %#x bytes' % (req.length))
-            self.info(req)
+            self.debug(req)
+            self.debug('expecting additional data on control ep - %#x bytes' % (req.length))
             data = os.read(self.control_fd, req.length)
             if len(data) != req.length:
                 self.error('EP0 data have wrong length')
