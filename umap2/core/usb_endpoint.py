@@ -62,6 +62,7 @@ class USBEndpoint(USBBaseActor):
         self.usb_class = usb_class
         self.usb_vendor = usb_vendor
         self.cs_endpoints = [] if cs_endpoints is None else cs_endpoints
+        self.address = (self.number & 0x0f) | (self.direction << 7)
 
         self.request_handlers = {
             0: self.handle_get_status,
@@ -81,7 +82,6 @@ class USBEndpoint(USBBaseActor):
     # see Table 9-13 of USB 2.0 spec (pdf page 297)
     @mutable('endpoint_descriptor')
     def get_descriptor(self, usb_type='fullspeed', valid=False):
-        address = (self.number & 0x0f) | (self.direction << 7)
         attributes = (
             (self.transfer_type & 0x03) |
             ((self.sync_type & 0x03) << 2) |
@@ -94,7 +94,7 @@ class USBEndpoint(USBBaseActor):
             '<BBBBHB',
             bLength,
             bDescriptorType,
-            address,
+            self.address,
             attributes,
             wMaxPacketSize,
             self.interval
