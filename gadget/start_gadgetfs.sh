@@ -19,7 +19,7 @@ umount_dir() {
     fi
 }
 
-MODULE_PATH = /root/gadgetfs.ko
+MODULE_PATH=/root/gadgetfs.ko
 
 if [ -f $MODULE_PATH ]; then
     echo "- Stoping services"
