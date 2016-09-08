@@ -180,11 +180,12 @@ class USBKeyboardInterface(USBInterface):
             self.usb_function_supported()
             if self.keys:
                 letter = self.keys.pop(0)
-                self.type_letter(letter)
+            else:
+                letter = '\x00'
+            self.type_letter(letter)
 
     def type_letter(self, letter, modifiers=0):
         data = struct.pack('<BBB', 0, 0, ord(letter))
-        self.verbose('sending keypress 0x%02x' % ord(letter))
         self.send_on_endpoint(2, data)
 
 
