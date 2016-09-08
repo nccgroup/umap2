@@ -28,16 +28,17 @@ class USBFtdiVendor(USBVendor):
 
     def setup_local_handlers(self):
         self.local_handlers = {
-            0: self.handle_reset,
-            1: self.handle_modem_ctrl,
-            2: self.handle_set_flow_ctrl,
-            3: self.handle_set_baud_rate,
-            4: self.handle_set_data,
-            5: self.handle_get_status,
-            6: self.handle_set_event_char,
-            7: self.handle_set_error_char,
-            9: self.handle_set_latency_timer,
-            10: self.handle_get_latency_timer,
+            0x00: self.handle_reset,
+            0x01: self.handle_modem_ctrl,
+            0x02: self.handle_set_flow_ctrl,
+            0x03: self.handle_set_baud_rate,
+            0x04: self.handle_set_data,
+            0x05: self.handle_get_modem_status,
+            0x06: self.handle_set_event_char,
+            0x07: self.handle_set_error_char,
+            0x09: self.handle_set_latency_timer,
+            0x0a: self.handle_get_latency_timer,
+            0x90: self.handle_read_ee,
         }
 
     @mutable('ftdi_reset_response')
@@ -81,9 +82,9 @@ class USBFtdiVendor(USBVendor):
         self.data = req.value
         return b''
 
-    @mutable('ftdi_get_status_response')
-    def handle_get_status(self, req):
-        return b''
+    @mutable('ftdi_get_modem_status_response')
+    def handle_get_modem_status(self, req):
+        return b'\x00' * req.length
 
     @mutable('ftdi_set_event_char_response')
     def handle_set_event_char(self, req):
@@ -101,6 +102,10 @@ class USBFtdiVendor(USBVendor):
     @mutable('ftdi_get_latency_timer_response')
     def handle_get_latency_timer(self, req):
         return struct.pack('B', self.latency_timer)
+
+    @mutable('ftdi_read_ee_response')
+    def handle_read_ee(self, req):
+        return b'\x31\x60'
 
 
 class USBFtdiInterface(USBInterface):
