@@ -122,7 +122,6 @@ class USBMtpInterface(USBInterface):
         if resps:
             for resp in resps:
                 self.send_on_endpoint(2, resp)
-            self.usb_function_supported()
 
 
 class USBMsosVendor(USBVendor):

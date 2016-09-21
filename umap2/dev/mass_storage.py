@@ -503,7 +503,6 @@ class USBMassStorageInterface(USBInterface):
 
     def handle_data_available(self, data):
         self.debug('handling %d bytes of SCSI data' % (len(data)))
-        self.usb_function_supported()
         self.scsi_device.rx.put(data)
 
 

@@ -61,7 +61,6 @@ class USBVendorSpecificInterface(USBInterface):
         pass
 
     def handle_data_available(self, data):
-        self.usb_function_supported()
         return
 
     def handle_set_interface_request(self, req):
