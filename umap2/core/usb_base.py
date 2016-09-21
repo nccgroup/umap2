@@ -51,13 +51,14 @@ class USBBaseActor(object):
         '''
         return self.session_data
 
-    def usb_function_supported(self):
+    def usb_function_supported(self, reason=None):
         '''
         Mark current USB function as supported by the host.
         This will tell the application to stop emulating current device.
-        TODO: reimplement, to stop app when in enumeration mode.
+
+        :param reason: reason why we decided it is supported (default: None)
         '''
-        self.app.usb_function_supported()
+        self.app.usb_function_supported(reason)
 
     def add_string_with_id(self, str_id, s):
         '''

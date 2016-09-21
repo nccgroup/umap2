@@ -275,10 +275,12 @@ class Umap2VSScanApp(Umap2App):
             self.sync_session()
         return self.setup_packet_received
 
-    def usb_function_supported(self):
+    def usb_function_supported(self, reason=None):
         '''
         Callback from a USB device, notifying that the current USB device
         is supported by the host.
+
+        :param reason: reason why we decided it is supported (default: None)
         '''
         self.current_usb_function_supported = True
 

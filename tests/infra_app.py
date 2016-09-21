@@ -29,7 +29,7 @@ class TestApp(Umap2App):
         '''
         return False
 
-    def usb_function_supported(self):
+    def usb_function_supported(self, reason=None):
         '''
         Callback from a USB device, notifying that the current USB device
         is supported by the host.

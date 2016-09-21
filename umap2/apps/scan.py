@@ -28,10 +28,12 @@ class Umap2ScanApp(Umap2App):
         self.current_usb_function_supported = False
         self.start_time = 0
 
-    def usb_function_supported(self):
+    def usb_function_supported(self, reason=None):
         '''
         Callback from a USB device, notifying that the current USB device
         is supported by the host.
+
+        :param reason: reason why we decided it is supported (default: None)
         '''
         self.current_usb_function_supported = True
 

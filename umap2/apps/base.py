@@ -121,11 +121,13 @@ class Umap2App(object):
         '''
         return False
 
-    def usb_function_supported(self):
+    def usb_function_supported(self, reason=None):
         '''
         Callback from a USB device, notifying that the current USB device
         is supported by the host.
         By default, do nothing with this information
+
+        :param reason: reason why we decided it is supported (default: None)
         '''
         pass
 
