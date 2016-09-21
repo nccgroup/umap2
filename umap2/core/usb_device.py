@@ -253,6 +253,7 @@ class USBDevice(USBBaseActor):
 
     def handle_data_available(self, ep_num, data):
         if self.state == State.configured and ep_num in self.endpoints:
+            self.usb_function_supported('data received on endpoint %#x' % (ep_num))
             endpoint = self.endpoints[ep_num]
             if callable(endpoint.handler):
                 endpoint.handler(data)

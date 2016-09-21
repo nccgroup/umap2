@@ -177,7 +177,7 @@ class USBKeyboardInterface(USBInterface):
         if self.first_call is None:
             self.first_call = time.time()
         if time.time() - self.first_call > 2:
-            self.usb_function_supported()
+            self.usb_function_supported('buffer available for keyboard report')
             if self.keys:
                 letter = self.keys.pop(0)
             else:

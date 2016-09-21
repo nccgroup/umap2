@@ -37,4 +37,4 @@ class USBVendor(USBBaseActor):
         response = handler(req)
         if response is not None:
             self.phy.send_on_endpoint(0, response)
-        self.usb_function_supported()
+        self.usb_function_supported('vendor specific setup request received')

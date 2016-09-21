@@ -56,4 +56,4 @@ class USBClass(USBBaseActor):
         response = handler(req)
         if response is not None:
             self.phy.send_on_endpoint(0, response)
-        self.app.usb_function_supported()
+        self.usb_function_supported('class specific setup request received')
