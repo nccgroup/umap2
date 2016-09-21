@@ -237,7 +237,3 @@ class Max342xPhy(PhyInterface):
                     raise
             if self.app.should_stop_phy():
                 break
-
-    # code that should be removed soon
-    def usb_function_supported(self):
-        self.app.usb_function_supported()
