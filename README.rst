@@ -144,6 +144,8 @@ Any patches/additions to the vid_pid_db.py file are very welcome!
 Fuzzing
 ~~~~~~~
 
+A detailed guide for fuzzing using Umap2 can be found in 
+`docs/fuzzing.rst <https://github.com/nccgroup/umap2/blob/master/docs/fuzzing.rst>`_
 Fuzzing with Umap2 is composed of three steps,
 which might be unified into a single script in the future.
 
