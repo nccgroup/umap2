@@ -187,3 +187,9 @@ Host OS Detection
 ~~~~~~~~~~~~~~~~~
 
 TBD
+
+Toubleshooting
+--------------
+
+If you have issues with Umap2, try the
+`troubleshooting section <https://github.com/nccgroup/umap2/blob/master/docs/troubleshooting.rst>`_
