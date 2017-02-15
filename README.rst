@@ -28,6 +28,10 @@ The APIs, executable names, etc. are likely to be changed
 in the near future.
 Use at your own risk.
 
+Support
+-------
+
+- IRC: `#umap2 on Freenode <https://webchat.freenode.net/?channels=umap2>`_
 Installation
 ------------
 
