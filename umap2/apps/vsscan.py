@@ -40,6 +40,7 @@ Examples:
 import time
 import traceback
 import os
+import six
 import signal
 import sys
 import cPickle
@@ -158,14 +159,14 @@ class Umap2VSScanApp(Umap2App):
             vid_start = int(vid.split('-')[0], 16)
             vid_end = int(vid.split('-')[1], 16)
             self.logger.debug('vid start=%04x, vid_end=%04x' % (vid_start, vid_end))
-            vid = xrange(vid_start, vid_end)
+            vid = six.moves.range(vid_start, vid_end)
         else:
             vid = [int(vid, 16)]
         if '-' in pid:
             pid_start = int(pid.split('-')[0], 16)
             pid_end = int(pid.split('-')[1], 16)
             self.logger.debug('pid start=%04x, pid_end=%x' % (pid_start, pid_end))
-            pid = xrange(pid_start, pid_end)
+            pid = six.moves.range(pid_start, pid_end)
         else:
             pid = [int(pid, 16)]
         for v in vid:
