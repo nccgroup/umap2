@@ -43,7 +43,7 @@ import os
 import signal
 import sys
 import six
-import cPickle
+from six.moves import cPickle
 from umap2.apps.base import Umap2App
 from umap2.dev.vendor_specific import USBVendorSpecificDevice
 
