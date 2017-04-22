@@ -20,7 +20,6 @@ setup(
         'docopt',
         'kittyfuzzer>=0.6.9',
         'pyserial',
-        'six',
     ],
     keywords='security,usb,fuzzing,kitty',
     entry_points={
