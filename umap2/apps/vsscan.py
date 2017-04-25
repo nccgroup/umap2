@@ -40,6 +40,7 @@ Examples:
 import time
 import traceback
 import os
+import six
 import signal
 import sys
 import six
