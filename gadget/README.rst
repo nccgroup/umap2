@@ -54,7 +54,7 @@ we provide 2 versions of the patched inode.c (gadgetfs module source):
   - inode.c-v4.4.9 for kernel v4.4.9 which is widely used (at the time)
     for the BeagleBone black
   - inode.c-v4.6_and_up which should be compatible at least up to v4.8-rc5
-  - Raspberry Pi W works out of the box with kernel 4.12.0-rc3+, no patching needed
+  - Raspberry Pi W works out of the box with kernel 4.12.0-rc3+, no patching needed, just add "dtoverlay=dwc2" to /boot/config.txt and add " modules-load=dwc2 " after rootwait string in /boot/config.txt. For shell use UART cable with raspberry pi zero w gpio pins for shell.
 
 **Note:** Currently we assume that all operations are performed as root.
 
@@ -82,7 +82,7 @@ You can use the following script to do that:
 ::
 
   $ $UMAP2_HOME/gadget/start_gadgetfs.sh
-or for Raspberr Pi Zero W :
+or for Raspberry Pi Zero W :
   $ $UMAP2_HOME/gadget/start_gadgetfs_RaspiZeroW.sh
 
 Once the new module is loaded,
