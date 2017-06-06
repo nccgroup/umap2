@@ -75,11 +75,19 @@ Hardware
 - `Facedancer <http://goodfet.sourceforge.net/hardware/facedancer21/>`_
   is the recommended hardware for Umap2.
   Umap2 was developed based on it, and you'll get the most support with it.
-- **GadgetFS** is partially supported (only BeagleBone Black at the moment).
+- **GadgetFS** is partially supported.
   This support is very experimental (even more than the rest of Umap2)
   and limited.
-  If you are interested, read the **gadget/README.rst** for more information.
+  
+  - BeagleboneBlack starting from Linux kernel 4.4.9 with a patched gadgetfs
+    driver
+  - RaspberryPi Zero W starting from Linux kernel 4.12.0-rc3+ which requires
+    no patches
+  - Since 4.12.0-rc3+ requires no patches, there might be other devices that
+    can be supported, if you know of such device or have made changes to make
+    it run on other devices, please send us a word.
 
+If you are interested, read the **gadget/README.rst** for more information.
 
 Usage
 -----
