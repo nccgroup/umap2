@@ -3,7 +3,7 @@
 Prepare stages for USB fuzzing
 
 Usage:
-    umap2makestages -P=PHY_INFO -C=DEVICE_CLASS -s=FILE [-q] [--vid=VID] [--pid=PID] [-v ...]
+    umap2stages -P=PHY_INFO -C=DEVICE_CLASS -s=FILE [-q] [--vid=VID] [--pid=PID] [-v ...]
 
 Options:
     -P --phy PHY_INFO       physical layer info, see list below
