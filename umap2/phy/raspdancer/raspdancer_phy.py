@@ -1,0 +1,215 @@
+'''
+Raspdancer (with MAX342x chip) USB physical interface
+
+This code is based on the MAXUSBApp and FacedancerApp implementation
+in GootFET by Travis Goodspeed: https://github.com/travisgoodspeed/goodfet
+'''
+import struct
+from binascii import hexlify
+from umap2.phy.iphy import PhyInterface
+from umap2.phy.raspdancer.raspdancer import Raspdancer
+
+
+class Regs:
+    '''
+    Enumeration of MAX342x registers
+    '''
+    ep0_fifo = 0x00
+    ep1_out_fifo = 0x01
+    ep2_in_fifo = 0x02
+    ep3_in_fifo = 0x03
+    setup_data_fifo = 0x04
+    ep0_byte_count = 0x05
+    ep1_out_byte_count = 0x06
+    ep2_in_byte_count = 0x07
+    ep3_in_byte_count = 0x08
+    ep_stalls = 0x09
+    clr_togs = 0x0a
+    endpoint_irq = 0x0b
+    endpoint_interrupt_enable = 0x0c
+    usb_irq = 0x0d
+    usb_interrupt_enable = 0x0e
+    usb_control = 0x0f
+    cpu_control = 0x10
+    pin_control = 0x11
+    revision = 0x12
+    function_address = 0x13
+    io_pins = 0x14
+
+
+class USBCTL:
+    '''
+    USBCTL (r15) register bits
+    '''
+    hoscsten = 0x80
+    vbgate = 0x40
+    chipres = 0x20
+    pwrdown = 0x10
+    connect = 0x08
+    sigrwu = 0x04
+
+
+class PINCTL:
+    '''
+    PINCTL (r17) register bits
+    '''
+    setup_data_avail = 0x20  # SUDAVIRQ
+    in3_buffer_avail = 0x10  # IN3BAVIRQ
+    in2_buffer_avail = 0x08  # IN2BAVIRQ
+    out1_data_avail = 0x04  # OUT1DAVIRQ
+    out0_data_avail = 0x02  # OUT0DAVIRQ
+    in0_buffer_avail = 0x01  # IN0BAVIRQ
+
+
+class RaspdancerPhy(PhyInterface):
+
+    # bitmask values for reg_pin_control = 0x11
+    interrupt_level = 0x08
+    full_duplex = 0x10
+
+    def __init__(self, app):
+        super(RaspdancerPhy, self).__init__(app, 'RaspdancerPhy')
+        self.device = Raspdancer()
+        self.info('Initialized commands')
+        self.retries = False
+        self.reply_buffer = ""
+        rev = self.read_register(Regs.revision)
+        self.info('MAX F/W revision: %s' % rev)
+        # first, we need to read
+        self.write_register(Regs.pin_control, self.full_duplex | self.interrupt_level)
+
+    def read_register(self, reg_num, ack=False):
+        self.verbose('Reading register 0x%02x' % reg_num)
+        mask = 0 if not ack else 1
+        data = struct.pack('<BB', (reg_num << 3) | mask, 0)
+        resp = self.device.transfer(data)
+        reg_val = struct.unpack('<B', resp[1:2])[0]
+        self.verbose('Read register 0x%02x has value 0x%02x' % (reg_num, reg_val))
+        return reg_val
+
+    def write_register(self, reg_num, value, ack=False):
+        self.verbose('Writing register 0x%02x with value 0x%02x' % (reg_num, value))
+        mask = 2 if not ack else 3
+        data = struct.pack('<BB', (reg_num << 3) | mask, value)
+        self.device.transfer(data)
+
+    def get_version(self):
+        return self.read_register(Regs.revision)
+
+    def ack_status_stage(self):
+        self.verbose('Sending ack!')
+        self.device.transfer(b'\x01')
+
+    def connect(self, usb_device):
+        super(RaspdancerPhy, self).connect(usb_device)
+        self.write_register(Regs.usb_control, USBCTL.vbgate | USBCTL.connect)
+        self.info('Connected device %s' % self.connected_device.name)
+
+    def disconnect(self):
+        self.write_register(Regs.usb_control, USBCTL.vbgate)
+        return super(RaspdancerPhy, self).disconnect()
+
+    def clear_irq_bit(self, reg, bit):
+        self.write_register(reg, bit)
+
+    def read_bytes(self, reg, n):
+        self.verbose('reading %d bytes from register %s' % (n, reg))
+        data = struct.pack('B', reg << 3) + b'\00' * n
+        resp = self.device.transfer(data)
+        self.verbose('read %d bytes from register %d' % (len(resp) - 1, reg))
+        return resp[1:]
+
+    def write_bytes(self, reg, data):
+        data = struct.pack('<B', (reg << 3) | 3) + data
+        self.device.transfer(data)
+
+        self.verbose('wrote %d bytes to register %d' % (len(data) - 1, reg))
+
+    # HACK: but given the limitations of the MAX chips, it seems necessary
+    def send_on_endpoint(self, ep_num, data):
+        if ep_num == 0:
+            fifo_reg = Regs.ep0_fifo
+            bc_reg = Regs.ep0_byte_count
+        elif ep_num == 2:
+            fifo_reg = Regs.ep2_in_fifo
+            bc_reg = Regs.ep2_in_byte_count
+        elif ep_num == 3:
+            fifo_reg = Regs.ep3_in_fifo
+            bc_reg = Regs.ep3_in_byte_count
+        else:
+            raise ValueError('endpoint ' + str(ep_num) + ' not supported')
+
+        # FIFO buffer is only 64 bytes, must loop
+        while len(data) > 64:
+            self.write_bytes(fifo_reg, data[:64])
+            self.write_register(bc_reg, 64, ack=True)
+
+            data = data[64:]
+
+        self.write_bytes(fifo_reg, data)
+        self.write_register(bc_reg, len(data), ack=True)
+
+        self.verbose('wrote %s to endpoint %#x' % (hexlify(data), ep_num))
+
+    # HACK: but given the limitations of the MAX chips, it seems necessary
+    def read_from_endpoint(self, ep_num):
+        if ep_num != 1:
+            return b''
+        byte_count = self.read_register(Regs.ep1_out_byte_count)
+        if byte_count == 0:
+            return b''
+        data = self.read_bytes(Regs.ep1_out_fifo, byte_count)
+        self.verbose('read %s from endpoint %#x' % (hexlify(data), ep_num))
+        return data
+
+    def stall_ep0(self):
+        self.verbose('stalling endpoint 0')
+        self.write_register(Regs.ep_stalls, 0x23)
+
+    def run(self):
+        self.service_irqs()
+
+    def service_irqs(self):
+        while not self.stop:
+            irq = self.read_register(Regs.endpoint_irq)
+
+            self.verbose('read endpoint irq: 0x%02x' % irq)
+
+            if irq & ~(
+                PINCTL.in0_buffer_avail |
+                PINCTL.in2_buffer_avail |
+                PINCTL.in3_buffer_avail
+            ):
+                self.debug('notable irq: 0x%02x' % irq)
+
+            if irq & PINCTL.setup_data_avail:
+                self.clear_irq_bit(Regs.endpoint_irq, PINCTL.setup_data_avail)
+
+                b = self.read_bytes(Regs.setup_data_fifo, 8)
+                if (irq & PINCTL.out0_data_avail) and (ord(b[0]) & 0x80 == 0x00):
+                    data_bytes_len = struct.unpack('<H', b[6:])[0]
+                    b += self.read_bytes(Regs.ep0_fifo, data_bytes_len)
+                self.app.signal_setup_packet_received()
+                self.connected_device.handle_request(b)
+
+            if irq & PINCTL.out1_data_avail:
+                data = self.read_from_endpoint(1)
+                if data:
+                    self.connected_device.handle_data_available(1, data)
+                self.clear_irq_bit(Regs.endpoint_irq, PINCTL.out1_data_avail)
+
+            if irq & PINCTL.in2_buffer_avail:
+                try:
+                    self.connected_device.handle_buffer_available(2)
+                except:
+                    self.error('umap ignored the exception for some reason... will need to address that later on')
+                    raise
+
+            if irq & PINCTL.in3_buffer_avail:
+                try:
+                    self.connected_device.handle_buffer_available(3)
+                except:
+                    self.error('umap ignored the exception for some reason... will need to address that later on')
+                    raise
+            if self.app.should_stop_phy():
+                break

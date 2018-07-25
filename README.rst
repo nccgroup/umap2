@@ -75,6 +75,7 @@ Hardware
 - `Facedancer <http://goodfet.sourceforge.net/hardware/facedancer21/>`_
   is the recommended hardware for Umap2.
   Umap2 was developed based on it, and you'll get the most support with it.
+- `Raspdancer <http://wiki.yobi.be/wiki/Raspdancer>` is supported on RPi
 - **GadgetFS** is partially supported.
   This support is very experimental (even more than the rest of Umap2)
   and limited.
@@ -205,3 +206,8 @@ Toubleshooting
 
 If you have issues with Umap2, try the
 `troubleshooting section <https://github.com/nccgroup/umap2/blob/master/docs/troubleshooting.rst>`_
+
+Raspdancer
+--------------
+You need SPI-Py <https://github.com/lthiery/SPI-Py> and GPIO python libraries.
+Use phy `rd`
