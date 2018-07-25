@@ -61,14 +61,14 @@ class PINCTL:
     in0_buffer_avail = 0x01  # IN0BAVIRQ
 
 
-class Max342xPhyR(PhyInterface):
+class RaspdancerPhy(PhyInterface):
 
     # bitmask values for reg_pin_control = 0x11
     interrupt_level = 0x08
     full_duplex = 0x10
 
     def __init__(self, app):
-        super(Max342xPhyR, self).__init__(app, 'Max342xPhyR')
+        super(RaspdancerPhy, self).__init__(app, 'RaspdancerPhy')
         self.device = Raspdancer()
         self.info('Initialized commands')
         self.retries = False
@@ -101,13 +101,13 @@ class Max342xPhyR(PhyInterface):
         self.device.transfer(b'\x01')
 
     def connect(self, usb_device):
-        super(Max342xPhyR, self).connect(usb_device)
+        super(RaspdancerPhy, self).connect(usb_device)
         self.write_register(Regs.usb_control, USBCTL.vbgate | USBCTL.connect)
         self.info('Connected device %s' % self.connected_device.name)
 
     def disconnect(self):
         self.write_register(Regs.usb_control, USBCTL.vbgate)
-        return super(Max342xPhyR, self).disconnect()
+        return super(RaspdancerPhy, self).disconnect()
 
     def clear_irq_bit(self, reg, bit):
         self.write_register(reg, bit)
