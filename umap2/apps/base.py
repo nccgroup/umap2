@@ -9,7 +9,6 @@ import docopt
 from serial import Serial, PARITY_NONE
 
 from umap2.phy.facedancer.max342x_phy import Max342xPhy
-from umap2.phy.raspdancer.raspdancer_phy import RaspdancerPhy
 from umap2.phy.gadgetfs.gadgetfs_phy import GadgetFsPhy
 from umap2.utils.ulogger import set_default_handler_level
 
@@ -69,9 +68,13 @@ class Umap2App(object):
             phy = Max342xPhy(self, s)
             return phy
         elif phy_type == 'rd':
-            self.logger.debug('Physical interface is raspdancer')
-            phy = RaspdancerPhy(self)
-            return phy
+            try:
+                from umap2.phy.raspdancer.raspdancer_phy import RaspdancerPhy
+                self.logger.debug('Physical interface is raspdancer')
+                phy = RaspdancerPhy(self)
+                return phy
+            except ImportError:
+                raise Exception('Raspdancer support misses spi module and/or gpio module.')
         elif phy_type == 'gadgetfs':
             self.logger.debug('Physical interface is GadgetFs')
             phy = GadgetFsPhy(self)
