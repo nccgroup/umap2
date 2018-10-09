@@ -127,7 +127,7 @@ class USBDevice(USBBaseActor):
             10: self.handle_get_interface_request,
             11: self.handle_set_interface_request,
             12: self.handle_synch_frame_request,
-            51: self.handle_aoa_get_protocol,
+            51: self.handle_aoa_get_protocol_request,
         }
 
     def connect(self):
@@ -466,7 +466,7 @@ class USBDevice(USBBaseActor):
         self.debug('Received SYNCH_FRAME request')
 
     # Android Open Accesories
-    def handle_aoa_get_protocol(self, req):
+    def handle_aoa_get_protocol_request(self, req):
         """
         Handle AOA Get Protocol request.
         We return 0, signaling that we don't support any version of AOA
