@@ -42,9 +42,6 @@ class Umap2ScanApp(Umap2App):
         phy = self.load_phy(self.options['--phy'])
         supported = []
         for device_name in self.umap_classes:
-            if device_name == 'printer':
-                # skip printer ATM
-                continue
             self.logger.always('Testing support: %s' % (device_name))
             try:
                 self.start_time = time.time()
@@ -65,7 +62,6 @@ class Umap2ScanApp(Umap2App):
             self.logger.always('Found %s supported device(s):' % (len(supported)))
             for i, device_name in enumerate(supported):
                 self.logger.always('%d. %s' % (i + 1, device_name))
-        self.logger.warning('Note: printer is not tested at the moment')
 
     def should_stop_phy(self):
         # if self.current_usb_function_supported:
