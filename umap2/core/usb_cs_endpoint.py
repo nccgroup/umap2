@@ -30,6 +30,10 @@ class USBCSEndpoint(USBBaseActor):
     def handle_clear_feature_request(self, req):
         self.interface.phy.send_on_endpoint(0, b'')
 
+    def default_handler(self, req):
+        self.interface.phy.send_on_endpoint(0, b'')
+        self.debug('Received an unknown CSEndpoint request: %s, returned an empty response' % req)
+
     def set_interface(self, interface):
         self.interface = interface
 

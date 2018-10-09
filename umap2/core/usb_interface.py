@@ -80,9 +80,7 @@ class USBInterface(USBBaseActor):
         lang = req.index
         n = req.length
 
-        response = None
         self.debug(('Received GET_DESCRIPTOR req %d, index %d, language 0x%04x, length %d' % (dtype, dindex, lang, n)))
-        # TODO: handle KeyError
         response = self.descriptors[dtype]
         if callable(response):
             response = response(dindex)
@@ -94,6 +92,10 @@ class USBInterface(USBBaseActor):
     def handle_set_interface_request(self, req):
         self.debug('Received SET_INTERFACE request')
         self.phy.stall_ep0()
+
+    def default_handler(self, req):
+        self.phy.send_on_endpoint(0, b'')
+        self.debug('Received an unknown USBInterface request: %s, returned an empty response' % req)
 
     # Table 9-12 of USB 2.0 spec (pdf page 296)
     @mutable('interface_descriptor')

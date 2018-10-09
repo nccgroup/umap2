@@ -234,7 +234,7 @@ class USBDevice(USBBaseActor):
         #     handler_entity = recipient
 
         self.debug('req: %s' % req)
-        handler = handler_entity.request_handlers.get(req.request, None)
+        handler = handler_entity.request_handlers.get(req.request, handler_entity.default_handler)
 
         if not handler:
             self.error('request not handled: %s' % req)
@@ -250,6 +250,13 @@ class USBDevice(USBBaseActor):
         except:
             traceback.print_exc()
             raise
+
+    def default_handler(self, req):
+        """
+        Called when there is no handler for the request
+        """
+        self.phy.send_on_endpoint(0, b'')
+        self.debug('Received an unknown device request: %s, returned an empty response' % req)
 
     def handle_data_available(self, ep_num, data):
         if self.state == State.configured and ep_num in self.endpoints:

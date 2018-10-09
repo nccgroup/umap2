@@ -18,21 +18,15 @@ class USBVendor(USBBaseActor):
         :param device: the usb device
         '''
         super(USBVendor, self).__init__(app, phy)
-        self.setup_request_handlers()
+        self.setup_local_handlers()
         self.device = None
         self.interface = None
         self.endpoint = None
 
-    def setup_request_handlers(self):
-        self.setup_local_handlers()
-        self.request_handlers = {
-            x: self.handle_all for x in self.local_handlers
-        }
-
     def setup_local_handlers(self):
         self.local_handlers = {}
 
-    def handle_all(self, req):
+    def default_handler(self, req):
         handler = self.local_handlers[req.request]
         response = handler(req)
         if response is not None:

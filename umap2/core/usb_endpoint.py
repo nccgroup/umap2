@@ -76,6 +76,10 @@ class USBEndpoint(USBBaseActor):
         self.info('in GET_STATUS of endpoint %d' % self.number)
         self.phy.send_on_endpoint(0, b'\x00\x00')
 
+    def default_handler(self, req):
+        self.phy.send_on_endpoint(0, b'')
+        self.debug('Received an unknown USBEndpoint request: %s, returned an empty response' % req)
+
     def send(self, data):
         self.phy.send_on_endpoint(self.number, data)
 

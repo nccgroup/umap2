@@ -53,6 +53,10 @@ class USBCSInterface(USBBaseActor):
         self.phy.stall_ep0()
         self.info('Received SET_INTERFACE request')
 
+    def default_handler(self, req):
+        self.phy.send_on_endpoint(0, b'')
+        self.debug('Received an unknown USBCSInterface request: %s, returned an empty response' % req)
+
     def get_descriptor(self, usb_type='fullspeed', valid=False):
         descriptor_type = DescriptorType.cs_interface
         length = len(self.cs_config) + 2
