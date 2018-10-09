@@ -126,7 +126,8 @@ class USBDevice(USBBaseActor):
             9: self.handle_set_configuration_request,
             10: self.handle_get_interface_request,
             11: self.handle_set_interface_request,
-            12: self.handle_synch_frame_request
+            12: self.handle_synch_frame_request,
+            51: self.handle_aoa_get_protocol,
         }
 
     def connect(self):
@@ -463,6 +464,17 @@ class USBDevice(USBBaseActor):
     # USB 2.0 specification, section 9.4.11 (p 288 of pdf)
     def handle_synch_frame_request(self, req):
         self.debug('Received SYNCH_FRAME request')
+
+    # Android Open Accesories
+    def handle_aoa_get_protocol(self, req):
+        """
+        Handle AOA Get Protocol request.
+        We return 0, signaling that we don't support any version of AOA
+        :param req:
+        :return:
+        """
+        self.phy.send_on_endpoint(0, b'\x00\x00')
+        self.debug('Received AOA Get Protocol request, returning 0')
 
 
 class USBDeviceRequest(object):
