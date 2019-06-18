@@ -17,12 +17,20 @@ class Facedancer(object):
         self.serialport.setRTS(1)
         self.serialport.setDTR(1)
 
-    def reset(self):
+    def reset(self, count=10):
         self.logger.info('Facedancer resetting...')
-        self.halt()
-        self.serialport.setDTR(0)
-        self.readcmd()
-        self.logger.info('Facedancer reset')
+        for i in range(count):
+            self.halt()
+            self.serialport.setDTR(0)
+            rsp_data = self.read(1024)
+            if len(rsp_data) < 4:
+                continue
+            app, verb, n = struct.unpack('<BBH', rsp_data[:4])
+            if verb == 0x7f and n == (len(rsp_data) - 4):
+                self.logger.debug("No buffer any more")
+                self.logger.info("Facedancer reset")
+                return
+        raise Exception("Facedancer reset fault.")
 
     def read(self, n):
         '''Read raw bytes.'''
