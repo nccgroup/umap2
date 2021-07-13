@@ -207,7 +207,8 @@ class ScsiDevice(USBBaseActor):
                     resp = self.handlers[opcode](cbw)
                     if resp is not None:
                         self.tx.put(resp)
-                    self.tx.put(scsi_status(cbw, ScsiCmdStatus.COMMAND_PASSED))
+                    if opcode != ScsiCmds.WRITE_10:
+                        self.tx.put(scsi_status(cbw, ScsiCmdStatus.COMMAND_PASSED))
                 except Exception as ex:
                     self.warning('exception while processing opcode %#x' % (opcode))
                     self.warning(ex)
