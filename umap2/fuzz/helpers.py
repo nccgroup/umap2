@@ -6,7 +6,6 @@ import traceback
 import binascii
 import inspect
 
-
 class StageLogger(object):
 
     def __init__(self, filename):
@@ -22,7 +21,8 @@ class StageLogger(object):
 
     def log_stage(self, stage):
         if self.fd:
-            self.fd.write(stage + '\n')
+
+            self.fd.write(stage.encode() + b'\n')
             self.fd.flush()
 
 
@@ -46,8 +46,8 @@ def mutable(stage, silent=False):
     def wrap_f(func):
         func_self = None
         if inspect.ismethod(func):
-            func_self = func.im_self
-            func = func.im_func
+            func_self = func.__self__
+            func = func.__func__
 
         def wrapper(*args, **kwargs):
             if func_self is None:
@@ -79,7 +79,7 @@ def mutable(stage, silent=False):
                 self.logger.error(''.join(traceback.format_stack()))
                 raise e
             if response is not None:
-                info('Response: %s' % binascii.hexlify(response))
+                info(f'Response: {response.hex()}')
             return response
         return wrapper
     return wrap_f

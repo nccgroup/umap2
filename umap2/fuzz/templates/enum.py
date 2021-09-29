@@ -10,7 +10,7 @@ from kitty.model import Template, Container, List
 from kitty.model import ElementCount, SizeInBytes
 # encoders
 from kitty.model import StrEncodeEncoder, ENC_INT_LE
-from generic import Descriptor, SubDescriptor
+from . generic import Descriptor, SubDescriptor
 
 
 # Device descriptor

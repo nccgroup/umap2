@@ -20,7 +20,7 @@ from kitty.interfaces import WebInterface
 from kitty.model import GraphModel
 from kitty.model import Template, Meta, String, UInt32
 
-from templates import audio, cdc, enum, generic, hid, hub, mass_storage
+from . templates import audio, cdc, enum, generic, hid, hub, mass_storage
 from templates import smart_card
 
 from controller import UmapController
