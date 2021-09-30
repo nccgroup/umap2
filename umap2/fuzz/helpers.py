@@ -3,7 +3,6 @@ This module contains helpers for fuzzing
 '''
 
 import traceback
-import binascii
 import inspect
 
 class StageLogger(object):
