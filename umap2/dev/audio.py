@@ -42,23 +42,23 @@ class USBAudioClass(USBClass):
         }
         self._settings = {
             # (val, index): [cur, min, max, res, (idle)]
-            (0x0100, 0x0001): ['\x44\xac\x00', '\x44\xac\x00', '\x80\xbb\x00', '\x80\xbb\x00'],
+            (0x0100, 0x0001): [b'\x44\xac\x00', b'\x44\xac\x00', b'\x80\xbb\x00', b'\x80\xbb\x00'],
             # (0x0100, 0x0002): ['\x44\xac\x00', '\x44\xac\x00', '\x80\xbb\x00', '\x80\xbb\x00'],
-            (0x0100, 0x0082): ['\x44\xac\x00', '\x44\xac\x00', '\x80\xbb\x00', '\x80\xbb\x00'],
-            (0x0100, 0x0900): ['\x00', '\x00', '\xff', '\x00'],
-            (0x0100, 0x0a00): ['\x01', '\x00', '\xff', '\x00'],
-            (0x0100, 0x0d00): ['\x01', '\x00', '\xff', '\x00'],
-            (0x0101, 0x0f00): ['\x01', '\x00', '\xff', '\x00'],
-            (0x0102, 0x0f00): ['\x01', '\x00', '\xff', '\x00'],
-            (0x0200, 0x0a00): ['\x00\x00', '\x00\x00', '\x55\x00', '\x30\x00', '\x00\x00'],
-            (0x0200, 0x0d00): ['\x80\x22', '\x00\x00', '\xd0\x00', '\x30\x00'],
-            (0x0201, 0x0900): ['\x80\x22', '\x20\x00', '\xa0\x00', '\x30\x00'],
-            (0x0201, 0x0f00): ['\x01', '\x00', '\xff', '\x00'],
-            (0x0202, 0x0900): ['\xcf\x00', '\x00\x00', '\xcf\x00', '\x30\x00'],
-            (0x0202, 0x0f00): ['\x01', '\x00', '\xff', '\x00'],
-            (0x0301, 0x0f00): ['\x01', '\x00', '\xff', '\x00'],
-            (0x0302, 0x0f00): ['\x00\x00', '\x00\x00', '\x00\x00', '\x00\x00'],
-            (0x0700, 0x0a00): ['\x01', '\x00', '\xff', '\x00'],
+            (0x0100, 0x0082): [b'\x44\xac\x00', b'\x44\xac\x00', b'\x80\xbb\x00', b'\x80\xbb\x00'],
+            (0x0100, 0x0900): [b'\x00', b'\x00', b'\xff', b'\x00'],
+            (0x0100, 0x0a00): [b'\x01', b'\x00', b'\xff', b'\x00'],
+            (0x0100, 0x0d00): [b'\x01', b'\x00', b'\xff', b'\x00'],
+            (0x0101, 0x0f00): [b'\x01', b'\x00', b'\xff', b'\x00'],
+            (0x0102, 0x0f00): [b'\x01', b'\x00', b'\xff', b'\x00'],
+            (0x0200, 0x0a00): [b'\x00\x00', b'\x00\x00', b'\x55\x00', b'\x30\x00', b'\x00\x00'],
+            (0x0200, 0x0d00): [b'\x80\x22', b'\x00\x00', b'\xd0\x00', b'\x30\x00'],
+            (0x0201, 0x0900): [b'\x80\x22', b'\x20\x00', b'\xa0\x00', b'\x30\x00'],
+            (0x0201, 0x0f00): [b'\x01', b'\x00', b'\xff', b'\x00'],
+            (0x0202, 0x0900): [b'\xcf\x00', b'\x00\x00', b'\xcf\x00', b'\x30\x00'],
+            (0x0202, 0x0f00): [b'\x01', b'\x00', b'\xff', b'\x00'],
+            (0x0301, 0x0f00): [b'\x01', b'\x00', b'\xff', b'\x00'],
+            (0x0302, 0x0f00): [b'\x00\x00', b'\x00\x00', b'\x00\x00', b'\x00\x00'],
+            (0x0700, 0x0a00): [b'\x01', b'\x00', b'\xff', b'\x00'],
         }
 
         self._cur = b'\x44\xac\x00'
@@ -205,29 +205,29 @@ class USBAudioDevice(USBDevice):
                             app=app, phy=phy, iface_num=0, iface_alt=0, iface_str_idx=0,
                             cs_ifaces=[
                                 # Class specific AC interface: header (4.3.2)
-                                USBCSInterface('ACHeader', app, phy, '\x01\x00\x01\x64\x00\x02\x01\x02'),
+                                USBCSInterface('ACHeader', app, phy, b'\x01\x00\x01\x64\x00\x02\x01\x02'),
                                 # Class specific AC interface: input terminal (Table 4.3.2.1)
-                                USBCSInterface('ACInputTerminal0', app, phy, '\x02\x01\x01\x01\x00\x02\x03\x00\x00\x00'),
-                                USBCSInterface('ACInputTerminal1', app, phy, '\x02\x02\x01\x02\x00\x01\x01\x00\x00\x00'),
+                                USBCSInterface('ACInputTerminal0', app, phy, b'\x02\x01\x01\x01\x00\x02\x03\x00\x00\x00'),
+                                USBCSInterface('ACInputTerminal1', app, phy, b'\x02\x02\x01\x02\x00\x01\x01\x00\x00\x00'),
                                 # Class specific AC interface: output terminal (Table 4.3.2.2)
-                                USBCSInterface('ACOutputTerminal0', app, phy, '\x03\x06\x01\x03\x00\x09\x00'),
-                                USBCSInterface('ACOutputTerminal1', app, phy, '\x03\x07\x01\x01\x00\x08\x00'),
+                                USBCSInterface('ACOutputTerminal0', app, phy, b'\x03\x06\x01\x03\x00\x09\x00'),
+                                USBCSInterface('ACOutputTerminal1', app, phy, b'\x03\x07\x01\x01\x00\x08\x00'),
                                 # Class specific AC interface: selector unit (Table 4.3.2.4)
-                                USBCSInterface('ACSelectorUnit', app, phy, '\x05\x08\x01\x0a\x00'),
+                                USBCSInterface('ACSelectorUnit', app, phy, b'\x05\x08\x01\x0a\x00'),
                                 # Class specific AC interface: feature unit (Table 4.3.2.5)
-                                USBCSInterface('ACFeatureUnit0', app, phy, '\x06\x09\x0f\x01\x01\x02\x02\x00'),
-                                USBCSInterface('ACFeatureUnit1', app, phy, '\x06\x0a\x02\x01\x43\x00\x00'),
-                                USBCSInterface('ACFeatureUnit2', app, phy, '\x06\x0d\x02\x01\x03\x00\x00'),
+                                USBCSInterface('ACFeatureUnit0', app, phy, b'\x06\x09\x0f\x01\x01\x02\x02\x00'),
+                                USBCSInterface('ACFeatureUnit1', app, phy, b'\x06\x0a\x02\x01\x43\x00\x00'),
+                                USBCSInterface('ACFeatureUnit2', app, phy, b'\x06\x0d\x02\x01\x03\x00\x00'),
                                 # Class specific AC interface: mixer unit (Table 4.3.2.3)
-                                USBCSInterface('ACMixerUnit', app, phy, '\x04\x0f\x02\x01\x0d\x02\x03\x00\x00\x00\x00'),
+                                USBCSInterface('ACMixerUnit', app, phy, b'\x04\x0f\x02\x01\x0d\x02\x03\x00\x00\x00\x00'),
                             ],
                             usb_class=usb_class
                         ),
                         USBAudioStreamingInterface(
                             app=app, phy=phy, iface_num=1, iface_alt=0, iface_str_idx=0,
                             cs_ifaces=[
-                                USBCSInterface('ASGeneral', app, phy, '\x01\x01\x01\x01\x00'),
-                                USBCSInterface('ASFormatType', app, phy, '\x02\x01\x02\x02\x10\x02\x44\xac\x00\x44\xac\x00'),
+                                USBCSInterface('ASGeneral', app, phy, b'\x01\x01\x01\x01\x00'),
+                                USBCSInterface('ASFormatType', app, phy, b'\x02\x01\x02\x02\x10\x02\x44\xac\x00\x44\xac\x00'),
                             ],
                             endpoints=[
                                 USBEndpoint(
@@ -240,7 +240,7 @@ class USBAudioDevice(USBDevice):
                                     interval=1,
                                     handler=audio_streaming.data_available,
                                     cs_endpoints=[
-                                        USBCSEndpoint('ASEndpoint', app, phy, '\x01\x01\x01\x01\x00')
+                                        USBCSEndpoint('ASEndpoint', app, phy, b'\x01\x01\x01\x01\x00')
                                     ],
                                     usb_class=usb_class,
                                 )
@@ -250,8 +250,8 @@ class USBAudioDevice(USBDevice):
                         USBAudioStreamingInterface(
                             app=app, phy=phy, iface_num=2, iface_alt=0, iface_str_idx=0,
                             cs_ifaces=[
-                                USBCSInterface('ASGeneral', app, phy, '\x01\x07\x01\x01\x00'),
-                                USBCSInterface('ASFormatType', app, phy, '\x02\x01\x01\x02\x10\x02\x44\xac\x00\x44\xac\x00'),
+                                USBCSInterface('ASGeneral', app, phy, b'\x01\x07\x01\x01\x00'),
+                                USBCSInterface('ASFormatType', app, phy, b'\x02\x01\x01\x02\x10\x02\x44\xac\x00\x44\xac\x00'),
                             ],
                             endpoints=[
                                 USBEndpoint(
@@ -264,7 +264,7 @@ class USBAudioDevice(USBDevice):
                                     interval=1,
                                     handler=audio_streaming.buffer_available,
                                     cs_endpoints=[
-                                        USBCSEndpoint('ASEndpoint', app, phy, '\x01\x01\x00\x00\x00')
+                                        USBCSEndpoint('ASEndpoint', app, phy, b'\x01\x01\x00\x00\x00')
                                     ],
                                     usb_class=usb_class,
                                 )

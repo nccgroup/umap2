@@ -129,7 +129,7 @@ as a small disk image (extract it using `tar xvf fat32.3M.stick.img`)
         block_end = (address + 1) * self.block_size   # slices are NON-inclusive
 
         pad_len = (self.block_size - (len(data) % self.block_size)) % self.block_size
-        data += '\x00' * pad_len
+        data += b'\x00' * pad_len
         self.image[block_start:block_end] = data[:self.block_size]
         self.image.flush()
 
@@ -391,7 +391,7 @@ class ScsiDevice(USBBaseActor):
         if report is None:
             # default behaviour, taken from previous implementation
             # this should probably be changed ...
-            report = '\x07\x00\x00\x00\x00\x00\x00\x00'
+            report = b'\x07\x00\x00\x00\x00\x00\x00\x00'
         if with_header:
             self.debug('SCSI mode sense (%d) - adding header' % (mode_type))
             report = self._report_header(mode_type, len(report)) + report

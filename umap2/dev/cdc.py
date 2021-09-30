@@ -191,7 +191,7 @@ class USBCDCClass(USBClass):
         key = (param_id, req.value, req.index)
         if key in self.params:
             return self.params[key]
-        return '\x00' * req.length
+        return b'\x00' * req.length
 
     def handle_clear(self, req):
         param_id = self.get_param_id_from_request(req.request)
